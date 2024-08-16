@@ -357,6 +357,25 @@ class PullRequest
     !against_default_branch? && !has_ignored_status?
   end
 
+  def change_status_if_necessary
+    if should_set_in_progress_status?
+      set_in_progress_status
+      return true
+    end
+
+    if should_set_needs_review_status?
+      set_needs_review_status
+      return true
+    end
+
+    if should_set_not_against_main_status?
+      set_not_against_main_status
+      return true
+    end
+
+    false
+  end
+
   private
 
   def set_project_item_status(option_id)
@@ -426,15 +445,8 @@ output_success_message("Loaded extra pull request info")
 
 total_status_changes = 0
 project_pulls.each do |pull|
-  if pull.should_set_in_progress_status?
+  if pull.change_status_if_necessary
     total_status_changes += 1
-    pull.set_in_progress_status
-  elsif pull.should_set_needs_review_status?
-    total_status_changes += 1
-    pull.set_needs_review_status
-  elsif pull.should_set_not_against_main_status?
-    total_status_changes += 1
-    pull.set_not_against_main_status
   end
 end
 
