@@ -278,27 +278,27 @@ class PullRequest
     @repo && base_branch == @repo.default_branch
   end
 
-  def in_progress_column_active?
+  def has_in_progress_status?
     current_status_option_id == @project.in_progress_option_id
   end
 
-  def not_against_main_column_active?
+  def has_not_against_main_status?
     current_status_option_id == @project.not_against_main_option_id
   end
 
-  def needs_review_column_active?
+  def has_needs_review_status?
     current_status_option_id == @project.needs_review_option_id
   end
 
-  def ready_to_deploy_column_active?
+  def has_ready_to_deploy_status?
     current_status_option_id == @project.ready_to_deploy_option_id
   end
 
-  def conflicting_column_active?
+  def has_conflicting_status?
     current_status_option_id == @project.conflicting_option_id
   end
 
-  def ignored_column_active?
+  def has_ignored_status?
     @project.ignored_option_ids.include?(current_status_option_id)
   end
 end
