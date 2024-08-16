@@ -555,15 +555,10 @@ class PullRequest
   end
 
   def change_status_if_necessary
-    if should_set_in_progress_status?
-      set_in_progress_status
+    if should_set_conflicting_status?
+      set_conflicting_status
       mark_as_draft if can_mark_as_draft?
-      return @project.in_progress_option_name
-    end
-
-    if should_set_needs_review_status?
-      set_needs_review_status
-      return @project.needs_review_option_name
+      return @project.conflicting_option_name
     end
 
     if should_set_not_against_main_status?
@@ -577,10 +572,15 @@ class PullRequest
       return @project.ready_to_deploy_option_name
     end
 
-    if should_set_conflicting_status?
-      set_conflicting_status
+    if should_set_needs_review_status?
+      set_needs_review_status
+      return @project.needs_review_option_name
+    end
+
+    if should_set_in_progress_status?
+      set_in_progress_status
       mark_as_draft if can_mark_as_draft?
-      return @project.conflicting_option_name
+      return @project.in_progress_option_name
     end
 
     nil
