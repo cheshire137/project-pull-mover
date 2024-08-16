@@ -37,3 +37,10 @@ token = `gh auth token`
 client = Octokit::Client.new(access_token: token)
 username = client.user[:login]
 puts "Authenticated as GitHub user @#{username}"
+
+json = `gh project item-list #{project_number} --owner #{project_owner} --format json`
+project_items = JSON.parse(json)["items"]
+project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
+total_pulls = project_pulls.size
+pull_units = total_pulls == 1 ? "pull request" : "pull requests"
+puts "Found #{total_pulls} #{pull_units} in project"
