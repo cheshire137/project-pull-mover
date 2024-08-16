@@ -355,6 +355,7 @@ class PullRequest
     return false unless @project.in_progress_option_id # can't
     return false if has_in_progress_status? # no-op
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
+    return false if conflicting? # don't put PR with merge conflicts into 'In progress'
 
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_check_suites? || failing_required_statuses?
