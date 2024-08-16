@@ -4,6 +4,8 @@ Script to change the status of a pull request in a GitHub project. On macOS, whe
 requests have their project status changed, a desktop notification will appear with the count of how many PRs were
 moved.
 
+![Screenshot of a GitHub project in kanban board layout with several columns. There is a blue arrow from a pull request in the left-most In Progress column pointing into the adjacent Not Against Master column.]
+
 ## How to use
 
 ### Prerequisites
