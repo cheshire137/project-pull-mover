@@ -169,7 +169,6 @@ class Project
 end
 
 project = Project.new(options)
-quiet_mode = project.quiet_mode?
 gh_path = project.gh_path
 
 unless gh_path
@@ -195,6 +194,8 @@ unless project.any_option_ids?
   puts option_parser
   exit 1
 end
+
+quiet_mode = project.quiet_mode?
 
 def output_loading_message(content)
   puts "⏳ #{content}"
