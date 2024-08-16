@@ -27,7 +27,7 @@ end
 option_parser.parse!(into: options)
 
 def output_error_message(content)
-  puts "❌ #{content}"
+  STDERR.puts "❌ #{content}"
 end
 
 class Project
