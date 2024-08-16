@@ -344,6 +344,10 @@ class PullRequest
     `gh pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
   end
 
+  def can_mark_as_draft?
+    !draft? && !enqueued?
+  end
+
   def should_set_in_progress_status?
     return false unless @project.in_progress_option_id
     return false if has_in_progress_status?
@@ -382,7 +386,7 @@ class PullRequest
   def change_status_if_necessary
     if should_set_in_progress_status?
       set_in_progress_status
-      mark_as_draft unless draft?
+      mark_as_draft if can_mark_as_draft?
       return true
     end
 
@@ -393,7 +397,7 @@ class PullRequest
 
     if should_set_not_against_main_status?
       set_not_against_main_status
-      mark_as_draft unless draft?
+      mark_as_draft if can_mark_as_draft?
       return true
     end
 
@@ -404,7 +408,7 @@ class PullRequest
 
     if should_set_conflicting_status?
       set_conflicting_status
-      mark_as_draft unless draft?
+      mark_as_draft if can_mark_as_draft?
       return true
     end
 
