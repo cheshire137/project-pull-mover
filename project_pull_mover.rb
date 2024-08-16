@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# encoding: utf-8
 
 require "json"
 require "optparse"
@@ -27,7 +28,7 @@ end
 option_parser.parse!(into: options)
 
 def output_error_message(content)
-  STDERR.puts "❌ #{content}"
+  STDERR.puts "❌ #{content}".force_encoding("UTF-8")
 end
 
 def which(cmd)
@@ -209,15 +210,15 @@ end
 quiet_mode = project.quiet_mode?
 
 def output_loading_message(content)
-  puts "⏳ #{content}"
+  puts "⏳ #{content}".force_encoding("UTF-8")
 end
 
 def output_success_message(content)
-  puts "✅ #{content}"
+  puts "✅ #{content}".force_encoding("UTF-8")
 end
 
 def output_info_message(content)
-  puts "ℹ️ #{content}"
+  puts "ℹ️ #{content}".force_encoding("UTF-8")
 end
 
 def send_desktop_notification(content:, title:)
@@ -229,7 +230,10 @@ def send_desktop_notification(content:, title:)
   end
 end
 
-output_info_message(`#{gh_path} auth status`) unless quiet_mode
+unless quiet_mode
+  auth_status_result = `#{gh_path} auth status`
+  output_info_message(auth_status_result.force_encoding("UTF-8"))
+end
 
 unless quiet_mode
   output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
