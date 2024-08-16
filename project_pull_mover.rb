@@ -23,7 +23,6 @@ end
 option_parser.parse!(into: options)
 
 options[:"status-field"] ||= "Status"
-pp options
 project_number = options[:"project-number"]
 project_owner = options[:"project-owner"]
 
@@ -38,6 +37,10 @@ end
 
 def output_success_message(content)
   puts "✅ #{content}"
+end
+
+def output_info_message(content)
+  puts "ℹ️ #{content}"
 end
 
 output_loading_message("Authenticating with GitHub...")
@@ -141,7 +144,7 @@ status_field_name = options[:"status-field"]
 pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   total_repos = pulls_by_repo_name.size
   repo_units = total_repos == 1 ? "repository" : "repositories"
-  output_success_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
+  output_info_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map do |pull|
