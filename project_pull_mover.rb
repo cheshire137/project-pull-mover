@@ -688,19 +688,24 @@ end
 
 output_success_message("Loaded extra pull request info") unless quiet_mode
 
-total_status_changes = 0
+total_status_changes_by_new_status = Hash.new(0)
 project_pulls.each do |pull|
   new_pull_status_option_name = pull.change_status_if_necessary
   if new_pull_status_option_name
-    total_status_changes += 1
+    total_status_changes_by_new_status[new_pull_status_option_name] += 1
   end
 end
 
-if total_status_changes < 1
+if total_status_changes_by_new_status.values.sum < 1
   output_info_message("No pull requests needed a different status") unless quiet_mode
 else
-  units = total_status_changes == 1 ? "pull request" : "pull requests"
-  message = "Updated status for #{total_status_changes} #{units}"
+  message_pieces = []
+  total_status_changes_by_new_status.each do |new_status, count|
+    units = count == 1 ? "pull request" : "pull requests"
+    first_letter = message_pieces.size < 1 ? "M" : "m"
+    message_pieces << "#{first_letter}oved #{count} #{units} to '#{new_status}'"
+  end
+  message = message_pieces.join(", ")
   output_info_message(message) unless quiet_mode
   send_desktop_notification(content: message, title: project.title)
 end
