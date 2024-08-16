@@ -352,7 +352,9 @@ class PullRequest
   def should_set_needs_review_status?
     return false unless @project.needs_review_option_id
     return false if has_needs_review_status?
-    !draft? && against_default_branch? && has_in_progress_status? && !approved?
+
+    !draft? && against_default_branch? && !approved? && !conflicting? &&
+      (has_in_progress_status? || has_conflicting_status?)
   end
 
   def should_set_not_against_main_status?
