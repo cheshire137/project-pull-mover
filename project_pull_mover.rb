@@ -30,6 +30,17 @@ def output_error_message(content)
   STDERR.puts "❌ #{content}"
 end
 
+def which(cmd)
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+    exts.each do |ext|
+      exe = File.join(path, "#{cmd}#{ext}")
+      return exe if File.executable?(exe) && !File.directory?(exe)
+    end
+  end
+  nil
+end
+
 class Project
   def initialize(options)
     @options = options
@@ -41,7 +52,7 @@ class Project
   end
 
   def gh_path
-    @gh_path ||= @options[:"gh-path"] || "gh"
+    @gh_path ||= @options[:"gh-path"] || which("gh") || "gh"
   end
 
   def status_field
@@ -207,17 +218,6 @@ end
 
 def output_info_message(content)
   puts "ℹ️ #{content}"
-end
-
-def which(cmd)
-  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
-  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
-    exts.each do |ext|
-      exe = File.join(path, "#{cmd}#{ext}")
-      return exe if File.executable?(exe) && !File.directory?(exe)
-    end
-  end
-  nil
 end
 
 def send_desktop_notification(content:, title:)
