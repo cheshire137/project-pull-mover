@@ -227,7 +227,14 @@ output_info_message(`gh auth status`) unless quiet_mode
 unless quiet_mode
   output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
 end
-json = `#{gh_path} project item-list #{project.number} --owner #{project.owner} --format json`
+
+project_items_cmd = "#{gh_path} project item-list #{project.number} --owner #{project.owner} --format json"
+json = `#{project_items_cmd}`
+if json.nil? || json == ""
+  output_error_message("Error: no JSON results for project items; command: #{project_items_cmd}")
+  exit 1
+end
+
 project_items = JSON.parse(json)["items"]
 
 def replace_hyphens(str)
