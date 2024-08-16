@@ -38,6 +38,30 @@ class Project
   def owner
     @owner ||= @options[:"project-owner"]
   end
+
+  def in_progress_option_id
+    @in_progress_option_id ||= @options[:"in-progress"]
+  end
+
+  def not_against_main_option_id
+    @not_against_main_option_id ||= @options[:"not-against-main"]
+  end
+
+  def needs_review_option_id
+    @needs_review_option_id ||= @options[:"needs-review"]
+  end
+
+  def ready_to_deploy_option_id
+    @ready_to_deploy_option_id ||= @options[:"ready-to-deploy"]
+  end
+
+  def conflicting_option_id
+    @conflicting_option_id ||= @options[:"conflicting"]
+  end
+
+  def ignored_option_ids
+    @ignored_option_ids ||= @options[:"ignored"] || []
+  end
 end
 
 project = Project.new(options)
@@ -252,6 +276,30 @@ class PullRequest
 
   def against_default_branch?
     @repo && base_branch == @repo.default_branch
+  end
+
+  def in_progress_column_active?
+    current_status_option_id == @project.in_progress_option_id
+  end
+
+  def not_against_main_column_active?
+    current_status_option_id == @project.not_against_main_option_id
+  end
+
+  def needs_review_column_active?
+    current_status_option_id == @project.needs_review_option_id
+  end
+
+  def ready_to_deploy_column_active?
+    current_status_option_id == @project.ready_to_deploy_option_id
+  end
+
+  def conflicting_column_active?
+    current_status_option_id == @project.conflicting_option_id
+  end
+
+  def ignored_column_active?
+    @project.ignored_option_ids.include?(current_status_option_id)
   end
 end
 
