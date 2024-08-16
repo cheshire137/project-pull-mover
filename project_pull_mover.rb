@@ -25,6 +25,10 @@ option_parser = OptionParser.new do |opts|
 end
 option_parser.parse!(into: options)
 
+def output_error_message(content)
+  puts "❌ #{content}"
+end
+
 class Project
   def initialize(options)
     @options = options
@@ -152,19 +156,19 @@ project = Project.new(options)
 quiet_mode = project.quiet_mode?
 
 unless project.number && project.owner && project.status_field
-  puts "Error: missing required options"
+  output_error_message("Error: missing required options")
   puts option_parser
   exit 1
 end
 
 unless %w(user organization).include?(project.owner_type)
-  puts "Error: invalid project owner type"
+  output_error_message("Error: invalid project owner type")
   puts option_parser
   exit 1
 end
 
 unless project.any_option_ids?
-  puts "Error: you must specify at least one option ID for the status field"
+  output_error_message("Error: you must specify at least one option ID for the status field")
   puts option_parser
   exit 1
 end
