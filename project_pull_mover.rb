@@ -61,14 +61,29 @@ def repo_field_alias_for(owner:, name:)
   "repo#{replace_hyphens(owner)}#{replace_hyphens(name)}"
 end
 
+class Repository
+  def initialize(gql_data)
+    @gql_data = gql_data
+  end
+
+  def default_branch
+    @default_branch ||= @gql_data["defaultBranchRef"]["name"]
+  end
+end
+
 class PullRequest
   def initialize(data)
     @data = data
-    @extra_info = {}
+    @gql_data = {}
+    @repo = nil
   end
 
-  def set_extra_info(value)
-    @extra_info = value
+  def set_graphql_data(value)
+    @gql_data = value
+  end
+
+  def set_repo(value)
+    @repo = value
   end
 
   def number
@@ -153,6 +168,82 @@ class PullRequest
       }
     GRAPHQL
   end
+
+  def failing_required_check_suites?
+    @gql_data["commits"]["nodes"].any? do |commit|
+      commit["checkSuites"]["nodes"].any? do |check_suite|
+        check_suite["checkRuns"]["nodes"].any? do |check_run|
+          check_run["isRequired"]
+        end
+      end
+    end
+  end
+
+  def failing_required_statuses?
+    @gql_data["commits"]["nodes"].any? do |commit|
+      commit["status"]["contexts"].any? do |context|
+        context["isRequired"] && context["state"] == "FAILURE"
+      end
+    end
+  end
+
+  def project_item_for(project_number:)
+    @gql_data["projectItems"]["nodes"].detect do |item|
+      item["project"]["number"] == project_number
+    end
+  end
+
+  def project_global_id_for(project_number:)
+    project_item = project_item_for(project_number: project_number)
+    return unless project_item
+
+    project_item["project"]["id"]
+  end
+
+  def current_status_option_id_for(project_number:)
+    project_item = project_item_for(project_number: project_number)
+    return unless project_item
+
+    project_item["fieldValueByName"]["optionId"]
+  end
+
+  def current_status_option_name_for(project_number:)
+    project_item = project_item_for(project_number: project_number)
+    return unless project_item
+
+    project_item["fieldValueByName"]["name"]
+  end
+
+  def status_field_id_for(project_number:)
+    project_item = project_item_for(project_number: project_number)
+    return unless project_item
+
+    project_item["fieldValueByName"]["field"]["id"]
+  end
+
+  def enqueued?
+    @gql_data["isInMergeQueue"]
+  end
+
+  def draft?
+    @gql_data["isDraft"]
+  end
+
+  def mergeable_state
+    @gql_data["mergeable"]
+  end
+
+  def review_decision
+    @gql_data["reviewDecision"]
+  end
+
+  def base_branch
+    @gql_data["baseRefName"]
+  end
+
+  def against_default_branch?
+    @repo && base_branch == @repo.default_branch
+  end
 end
 
 project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
@@ -174,6 +265,7 @@ def repository_graphql_for(repo_owner:, repo_name:, pull_fields:)
   <<~GRAPHQL
     #{field_alias}: repository(owner: "#{repo_owner}", name: "#{repo_name}") {
       id
+      defaultBranchRef { name }
       #{pull_fields.join("\n")}
     }
   GRAPHQL
@@ -202,63 +294,16 @@ json = `gh api graphql -f query='query { #{repo_fields.join("\n")} }'`
 project_pull_info_by_repo_field_alias = JSON.parse(json)["data"]
 
 project_pulls.each do |pull|
-  pull_info_by_pull_alias = project_pull_info_by_repo_field_alias[pull.graphql_repo_field_alias]
-  next unless pull_info_by_pull_alias
+  repo_gql_data = project_pull_info_by_repo_field_alias[pull.graphql_repo_field_alias]
+  next unless repo_gql_data
 
-  extra_info = pull_info_by_pull_alias[pull.graphql_field_alias]
-  pull.set_extra_info(extra_info) if extra_info
+  repo = Repository.new(repo_gql_data)
+  pull.set_repo(repo)
+
+  extra_info = repo_gql_data[pull.graphql_field_alias]
+  pull.set_graphql_data(extra_info) if extra_info
+
+  puts "#{pull} - against_default_branch? #{pull.against_default_branch?}"
 end
 
 output_success_message("Loaded extra pull request info")
-
-def failing_required_check_suites?(pull)
-  pull["commits"]["nodes"].any? do |commit|
-    commit["checkSuites"]["nodes"].any? do |check_suite|
-      check_suite["checkRuns"]["nodes"].any? do |check_run|
-        check_run["isRequired"]
-      end
-    end
-  end
-end
-
-def failing_required_statuses?(pull)
-  pull["commits"]["nodes"].any? do |commit|
-    commit["status"]["contexts"].any? do |context|
-      context["isRequired"] && context["state"] == "FAILURE"
-    end
-  end
-end
-
-def project_item_for(pull, project_number:)
-  pull["projectItems"]["nodes"].detect do |item|
-    item["project"]["number"] == project_number
-  end
-end
-
-def project_global_id_for(pull, project_number:)
-  project_item = project_item_for(pull, project_number: project_number)
-  return unless project_item
-
-  project_item["project"]["id"]
-end
-
-def current_status_option_id_for(pull, project_number:)
-  project_item = project_item_for(pull, project_number: project_number)
-  return unless project_item
-
-  project_item["fieldValueByName"]["optionId"]
-end
-
-def current_status_option_name_for(pull, project_number:)
-  project_item = project_item_for(pull, project_number: project_number)
-  return unless project_item
-
-  project_item["fieldValueByName"]["name"]
-end
-
-def status_field_id_for(pull, project_number:)
-  project_item = project_item_for(pull, project_number: project_number)
-  return unless project_item
-
-  project_item["fieldValueByName"]["field"]["id"]
-end
