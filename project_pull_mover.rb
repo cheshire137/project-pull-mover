@@ -148,9 +148,6 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   end
 end
 
-graphql_query = <<~GRAPHQL
-  query {
-    #{repo_fields.join("\n")}
-  }
-GRAPHQL
-puts graphql_query
+json = `gh api graphql -f query='query { #{repo_fields.join("\n")} }'`
+project_pull_info = JSON.parse(json)
+pp project_pull_info
