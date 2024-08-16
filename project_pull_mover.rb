@@ -211,20 +211,23 @@ class PullRequest
   end
 
   def failing_required_check_suites?
-    @gql_data["commits"]["nodes"].any? do |commit|
-      commit["checkSuites"]["nodes"].any? do |check_suite|
-        check_suite["checkRuns"]["nodes"].any? do |check_run|
-          check_run["isRequired"]
-        end
+    return false unless last_commit
+
+    last_commit["checkSuites"]["nodes"].any? do |check_suite|
+      check_suite["checkRuns"]["nodes"].any? do |check_run|
+        check_run["isRequired"]
       end
     end
   end
 
   def failing_required_statuses?
-    @gql_data["commits"]["nodes"].any? do |commit|
-      commit["status"]["contexts"].any? do |context|
-        context["isRequired"] && context["state"] == "FAILURE"
-      end
+    return false unless last_commit
+
+    status = last_commit["status"]
+    return false unless status
+
+    status["contexts"].any? do |context|
+      context["isRequired"] && context["state"] == "FAILURE"
     end
   end
 
@@ -422,6 +425,14 @@ class PullRequest
   end
 
   private
+
+  def last_commit
+    return @last_commit if defined?(@last_commit)
+    node = @gql_data["commits"]["nodes"][0]
+    @last_commit = if node
+      node["commit"]
+    end
+  end
 
   def set_project_item_status(option_id)
     return false unless option_id
