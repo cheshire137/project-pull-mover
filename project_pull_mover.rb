@@ -357,6 +357,12 @@ class PullRequest
     !against_default_branch? && !has_ignored_status?
   end
 
+  def should_set_ready_to_deploy_status?
+    return false unless @project.ready_to_deploy_option_id
+    return false if has_ready_to_deploy_status?
+    !draft? && enqueued? && !has_ignored_status?
+  end
+
   def change_status_if_necessary
     if should_set_in_progress_status?
       set_in_progress_status
@@ -370,6 +376,11 @@ class PullRequest
 
     if should_set_not_against_main_status?
       set_not_against_main_status
+      return true
+    end
+
+    if should_set_ready_to_deploy_status?
+      set_ready_to_deploy_status
       return true
     end
 
