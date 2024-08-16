@@ -164,3 +164,55 @@ output_loading_message("Looking up more info about each pull request in project.
 json = `gh api graphql -f query='query { #{repo_fields.join("\n")} }'`
 project_pull_info_by_repo_field_alias = JSON.parse(json)["data"]
 output_success_message("Loaded extra pull request info")
+
+def failing_required_check_suites?(pull)
+  pull["commits"]["nodes"].any? do |commit|
+    commit["checkSuites"]["nodes"].any? do |check_suite|
+      check_suite["checkRuns"]["nodes"].any? do |check_run|
+        check_run["isRequired"]
+      end
+    end
+  end
+end
+
+def failing_required_statuses?(pull)
+  pull["commits"]["nodes"].any? do |commit|
+    commit["status"]["contexts"].any? do |context|
+      context["isRequired"] && context["state"] == "FAILURE"
+    end
+  end
+end
+
+def project_item_for(pull, project_number:)
+  pull["projectItems"]["nodes"].detect do |item|
+    item["project"]["number"] == project_number
+  end
+end
+
+def project_global_id_for(pull, project_number:)
+  project_item = project_item_for(pull, project_number: project_number)
+  return unless project_item
+
+  project_item["project"]["id"]
+end
+
+def current_status_option_id_for(pull, project_number:)
+  project_item = project_item_for(pull, project_number: project_number)
+  return unless project_item
+
+  project_item["fieldValueByName"]["optionId"]
+end
+
+def current_status_option_name_for(pull, project_number:)
+  project_item = project_item_for(pull, project_number: project_number)
+  return unless project_item
+
+  project_item["fieldValueByName"]["name"]
+end
+
+def status_field_id_for(pull, project_number:)
+  project_item = project_item_for(pull, project_number: project_number)
+  return unless project_item
+
+  project_item["fieldValueByName"]["field"]["id"]
+end
