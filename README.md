@@ -5,6 +5,8 @@ Script to change the status of a pull request in a GitHub project.
 ## How to use
 
 Install the [`gh` command line tool](https://cli.github.com/). `gh` will be used to authenticate with the GitHub API.
+You'll also need [Ruby](https://www.ruby-lang.org/en/documentation/installation/) installed; I built this script
+with Ruby version 2.7.1p83.
 
 In [GraphiQL](https://docs.github.com/en/graphql/overview/explorer), run a GraphQL query like this one to get IDs for the options in your project's "Status"-like column:
 
