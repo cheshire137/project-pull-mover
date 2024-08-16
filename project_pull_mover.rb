@@ -307,22 +307,27 @@ class PullRequest
   end
 
   def set_in_progress_status
+    output_status_change_loading_message("In progress")
     set_project_item_status(@project.in_progress_option_id)
   end
 
   def set_needs_review_status
+    output_status_change_loading_message("Needs review")
     set_project_item_status(@project.needs_review_option_id)
   end
 
   def set_not_against_main_status
+    output_status_change_loading_message("Not against main")
     set_project_item_status(@project.not_against_main_option_id)
   end
 
   def set_ready_to_deploy_status
+    output_status_change_loading_message("Ready to deploy")
     set_project_item_status(@project.ready_to_deploy_option_id)
   end
 
   def set_conflicting_status
+    output_status_change_loading_message("Conflicting")
     set_project_item_status(@project.conflicting_option_id)
   end
 
@@ -330,11 +335,20 @@ class PullRequest
     `gh pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
   end
 
+  def should_set_in_progress_status?
+    draft? && @project.in_progress_option_id && against_default_branch? && !has_in_progress_status? &&
+      !has_ignored_status?
+  end
+
   private
 
   def set_project_item_status(option_id)
     return false unless option_id
     `gh project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
+  end
+
+  def output_status_change_loading_message(target_column_name)
+    output_loading_message("Moving #{to_s} out of #{current_status_option_name} column to '#{target_column_name}'...")
   end
 end
 
@@ -392,3 +406,18 @@ project_pulls.each do |pull|
 end
 
 output_success_message("Loaded extra pull request info")
+
+total_status_changes = 0
+project_pulls.each do |pull|
+  if pull.should_set_in_progress_status?
+    total_status_changes += 1
+    pull.set_in_progress_status
+  end
+end
+
+if total_status_changes < 1
+  output_info_message("No pull requests needed a different status")
+else
+  units = total_status_changes == 1 ? "pull request" : "pull requests"
+  output_info_message("Updated status for #{total_status_changes} #{units}")
+end
