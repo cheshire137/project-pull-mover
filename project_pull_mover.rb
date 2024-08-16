@@ -22,11 +22,27 @@ option_parser = OptionParser.new do |opts|
 end
 option_parser.parse!(into: options)
 
-options[:"status-field"] ||= "Status"
-project_number = options[:"project-number"]
-project_owner = options[:"project-owner"]
+class Project
+  def initialize(options)
+    @options = options
+  end
 
-unless project_number && project_owner
+  def status_field
+    @status_field ||= @options[:"status-field"]
+  end
+
+  def number
+    @number ||= @options[:"project-number"]
+  end
+
+  def owner
+    @owner ||= @options[:"project-owner"]
+  end
+end
+
+project = Project.new(options)
+
+unless project.number && project.owner && project.status_field
   puts option_parser
   exit 1
 end
@@ -49,8 +65,8 @@ client = Octokit::Client.new(access_token: token)
 username = client.user[:login]
 output_success_message("Authenticated as GitHub user @#{username}")
 
-output_loading_message("Looking up items in project #{project_number} owned by @#{project_owner}...")
-json = `gh project item-list #{project_number} --owner #{project_owner} --format json`
+output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
+json = `gh project item-list #{project.number} --owner #{project.owner} --format json`
 project_items = JSON.parse(json)["items"]
 
 def replace_hyphens(str)
@@ -72,10 +88,11 @@ class Repository
 end
 
 class PullRequest
-  def initialize(data)
+  def initialize(data, project:)
     @data = data
     @gql_data = {}
     @repo = nil
+    @project = project
   end
 
   def set_graphql_data(value)
@@ -118,7 +135,7 @@ class PullRequest
     @graphql_field_alias ||= "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}#{number}"
   end
 
-  def graphql_for(status_field_name:)
+  def graphql_field
     <<~GRAPHQL
       #{graphql_field_alias}: pullRequest(number: #{number}) {
         isDraft
@@ -156,7 +173,7 @@ class PullRequest
           nodes {
             id
             project { id number }
-            fieldValueByName(name: "#{status_field_name}") {
+            fieldValueByName(name: "#{@project.status_field}") {
               ... on ProjectV2ItemFieldSingleSelectValue {
                 field { ... on ProjectV2SingleSelectField { id } }
                 optionId
@@ -187,38 +204,30 @@ class PullRequest
     end
   end
 
-  def project_item_for(project_number:)
-    @gql_data["projectItems"]["nodes"].detect do |item|
-      item["project"]["number"] == project_number
+  def project_item
+    @project_item ||= @gql_data["projectItems"]["nodes"].detect do |item|
+      item["project"]["number"] == @project.number
     end
   end
 
-  def project_global_id_for(project_number:)
-    project_item = project_item_for(project_number: project_number)
+  def project_global_id
     return unless project_item
-
-    project_item["project"]["id"]
+    @project_global_id ||= project_item["project"]["id"]
   end
 
-  def current_status_option_id_for(project_number:)
-    project_item = project_item_for(project_number: project_number)
+  def current_status_option_id
     return unless project_item
-
-    project_item["fieldValueByName"]["optionId"]
+    @current_status_option_id ||= project_item["fieldValueByName"]["optionId"]
   end
 
-  def current_status_option_name_for(project_number:)
-    project_item = project_item_for(project_number: project_number)
+  def current_status_option_name
     return unless project_item
-
-    project_item["fieldValueByName"]["name"]
+    @current_status_option_name ||= project_item["fieldValueByName"]["name"]
   end
 
-  def status_field_id_for(project_number:)
-    project_item = project_item_for(project_number: project_number)
+  def status_field_id
     return unless project_item
-
-    project_item["fieldValueByName"]["field"]["id"]
+    @status_field_id ||= project_item["fieldValueByName"]["field"]["id"]
   end
 
   def enqueued?
@@ -247,7 +256,7 @@ class PullRequest
 end
 
 project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
-  .map { |pull_info| PullRequest.new(pull_info) }
+  .map { |pull_info| PullRequest.new(pull_info, project: project) }
 total_pulls = project_pulls.size
 pull_units = total_pulls == 1 ? "pull request" : "pull requests"
 output_success_message("Found #{total_pulls} #{pull_units} in project")
@@ -272,7 +281,6 @@ def repository_graphql_for(repo_owner:, repo_name:, pull_fields:)
 end
 
 repo_fields = []
-status_field_name = options[:"status-field"]
 
 pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   total_repos = pulls_by_repo_name.size
@@ -280,12 +288,8 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   output_info_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
-    pull_fields = pulls_in_repo.map do |pull|
-      pull.graphql_for(status_field_name: status_field_name)
-    end
-
-    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name,
-      pull_fields: pull_fields)
+    pull_fields = pulls_in_repo.map(&:graphql_field)
+    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name, pull_fields: pull_fields)
   end
 end
 
@@ -302,8 +306,6 @@ project_pulls.each do |pull|
 
   extra_info = repo_gql_data[pull.graphql_field_alias]
   pull.set_graphql_data(extra_info) if extra_info
-
-  puts "#{pull} - against_default_branch? #{pull.against_default_branch?}"
 end
 
 output_success_message("Loaded extra pull request info")
