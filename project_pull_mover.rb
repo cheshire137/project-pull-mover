@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require "json"
-require "mkmf"
 require "optparse"
 
 options = {}
@@ -197,8 +196,19 @@ def output_info_message(content)
   puts "ℹ️ #{content}"
 end
 
+def which(cmd)
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+    exts.each do |ext|
+      exe = File.join(path, "#{cmd}#{ext}")
+      return exe if File.executable?(exe) && !File.directory?(exe)
+    end
+  end
+  nil
+end
+
 def send_desktop_notification(content:, title:)
-  has_osascript = find_executable("osascript")
+  has_osascript = which("osascript")
   if has_osascript
     content = content.gsub(/"'/, "")
     title = title.gsub(/"'/, "")
