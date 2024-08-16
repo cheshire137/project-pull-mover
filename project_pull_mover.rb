@@ -63,6 +63,7 @@ class Project
     <<~GRAPHQL
       #{owner_type}(login: "#{owner}") {
         projectV2(number: #{number}) {
+          title
           field(name: "#{status_field}") {
             ... on ProjectV2SingleSelectField {
               options { id name }
@@ -137,6 +138,16 @@ class Project
 
   def ignored_option_ids
     @ignored_option_ids ||= @options[:"ignored"] || []
+  end
+
+  def title
+    return @title if @title
+    project_data = @gql_data["projectV2"]
+    @title = if project_data
+      project_data["title"]
+    else
+      "Unknown project"
+    end
   end
 
   private
