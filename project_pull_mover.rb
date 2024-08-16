@@ -453,6 +453,10 @@ class PullRequest
     @repo && base_branch == @repo.default_branch
   end
 
+  def daisy_chained?
+    @repo && !against_default_branch?
+  end
+
   def has_in_progress_status?
     current_status_option_id == @project.in_progress_option_id
   end
@@ -517,7 +521,7 @@ class PullRequest
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
     return false if conflicting? # don't put PR with merge conflicts into 'In progress'
     return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
-    return false unless against_default_branch? # if not based on 'main', should be in 'Not against main'
+    return false if daisy_chained? # if not based on 'main', should be in 'Not against main'
 
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_check_suites? || failing_required_statuses?
@@ -531,27 +535,27 @@ class PullRequest
     return false if has_needs_review_status? # no-op
     return false if conflicting? # don't ask for review when there are conflicts to resolve
     return false if draft? # don't ask for review if it's still a draft
-    return false unless against_default_branch? # don't ask for review when base branch will change
+    return false if daisy_chained? # don't ask for review when base branch will change
     return false if enqueued? # don't ask for review if we're already in the merge queue
 
     !approved? && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status?)
   end
 
   def should_set_not_against_main_status?
-    return false unless @project.not_against_main_option_id
-    return false if has_not_against_main_status?
-    !against_default_branch? && !has_ignored_status?
+    return false unless @project.not_against_main_option_id # can't
+    return false if has_not_against_main_status? # no-op
+    daisy_chained? && !has_ignored_status?
   end
 
   def should_set_ready_to_deploy_status?
-    return false unless @project.ready_to_deploy_option_id
-    return false if has_ready_to_deploy_status?
+    return false unless @project.ready_to_deploy_option_id # can't
+    return false if has_ready_to_deploy_status? # no-op
     !draft? && enqueued? && !has_ignored_status?
   end
 
   def should_set_conflicting_status?
-    return false unless @project.conflicting_option_id
-    return false if has_conflicting_status?
+    return false unless @project.conflicting_option_id # can't
+    return false if has_conflicting_status? # no-op
     against_default_branch? && conflicting? && !enqueued? && !has_ignored_status?
   end
 
