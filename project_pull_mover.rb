@@ -224,8 +224,9 @@ end
 def send_desktop_notification(content:, title:)
   has_osascript = which("osascript")
   if has_osascript
-    content = content.gsub(/"'/, "")
-    title = title.gsub(/"'/, "")
+    quote_regex = /["']/
+    content = content.gsub(quote_regex, "")
+    title = title.gsub(quote_regex, "")
     `osascript -e 'display notification "#{content}" with title "#{title}"'`
   end
 end
