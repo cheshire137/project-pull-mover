@@ -382,6 +382,7 @@ class PullRequest
   def change_status_if_necessary
     if should_set_in_progress_status?
       set_in_progress_status
+      mark_as_draft unless draft?
       return true
     end
 
@@ -392,6 +393,7 @@ class PullRequest
 
     if should_set_not_against_main_status?
       set_not_against_main_status
+      mark_as_draft unless draft?
       return true
     end
 
@@ -402,7 +404,7 @@ class PullRequest
 
     if should_set_conflicting_status?
       set_conflicting_status
-      mark_as_draft
+      mark_as_draft unless draft?
       return true
     end
 
