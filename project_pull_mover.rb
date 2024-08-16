@@ -32,18 +32,27 @@ unless project_number && project_owner
   exit 1
 end
 
-puts "Working with project #{project_number} owned by @#{project_owner}"
+def output_loading_message(content)
+  puts "⏳ #{content}"
+end
+
+def output_success_message(content)
+  puts "✅ #{content}"
+end
+
+output_loading_message("Authenticating with GitHub...")
 token = `gh auth token`
 client = Octokit::Client.new(access_token: token)
 username = client.user[:login]
-puts "Authenticated as GitHub user @#{username}"
+output_success_message("Authenticated as GitHub user @#{username}")
 
+output_loading_message("Looking up items in project #{project_number} owned by @#{project_owner}...")
 json = `gh project item-list #{project_number} --owner #{project_owner} --format json`
 project_items = JSON.parse(json)["items"]
 project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
 total_pulls = project_pulls.size
 pull_units = total_pulls == 1 ? "pull request" : "pull requests"
-puts "Found #{total_pulls} #{pull_units} in project"
+output_success_message("Found #{total_pulls} #{pull_units} in project")
 
 pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
   repo_name_with_owner = pull["content"]["repository"]
@@ -132,7 +141,7 @@ status_field_name = options[:"status-field"]
 pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   total_repos = pulls_by_repo_name.size
   repo_units = total_repos == 1 ? "repository" : "repositories"
-  puts "Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}"
+  output_success_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map do |pull|
@@ -148,6 +157,7 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   end
 end
 
+output_loading_message("Looking up more info about each pull request in project...")
 json = `gh api graphql -f query='query { #{repo_fields.join("\n")} }'`
-project_pull_info = JSON.parse(json)
-pp project_pull_info
+project_pull_info_by_repo_field_alias = JSON.parse(json)["data"]
+output_success_message("Loaded extra pull request info")
