@@ -106,3 +106,13 @@ Make a directory for holding logs from the script. Here is an example config for
 # Runs every 30 minutes, Monday through Friday, between 9am and 5pm:
 */31,*/1 9-17 * * 1-5 /path/to/this/repo/project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status" -q -h "/usr/local/bin/gh" >/path/to/your/log/directory/stdout.log 2>/path/to/your/log/directory/stderr.log
 ```
+
+If you have problems with `gh` not being authenticated, try a cron line like:
+
+```sh
+# Runs every 30 minutes, Monday through Friday, between 9am and 5pm:
+*/31,*/1 9-17 * * 1-5 echo "YOUR_TOKEN_HERE" | /usr/local/bin/gh auth login --with-token && /path/to/this/repo/project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status" -q -h "/usr/local/bin/gh" >/path/to/your/log/directory/stdout.log 2>/path/to/your/log/directory/stderr.log
+```
+
+To get the token to use, try running `gh auth refresh -s project` first and go through the interactive authentication
+flow. Once complete, you can run `gh auth token` to get your GitHub API token.
