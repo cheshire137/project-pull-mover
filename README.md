@@ -35,7 +35,7 @@ To request it, run:  gh auth refresh -s project
 Example use:
 
 ```sh
-./project_pull_mover.rb -p 123 -o myOrg -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status"
+./project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status"
 ```
 
 Example no-op output:

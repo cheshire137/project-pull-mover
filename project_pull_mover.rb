@@ -10,6 +10,8 @@ option_parser = OptionParser.new do |opts|
     "Project number (required), e.g., 123 for https://github.com/orgs/someorg/projects/123")
   opts.on("-o OWNER", "--project-owner", String,
     "Project owner login (required), e.g., someorg for https://github.com/orgs/someorg/projects/123")
+  opts.on("-t TYPE", "--project-owner-type", String,
+    "Project owner type (required), either 'user' or 'organization'")
   opts.on("-s STATUS", "--status-field", String,
     "Status field name (required), name of a single-select field in the project")
   opts.on("-i ID", "--in-progress", String, "Option ID of 'In progress' column for status field")
@@ -45,24 +47,25 @@ class Project
     @owner ||= @options[:"project-owner"]
   end
 
+  def owner_type
+    @owner_type ||= @options[:"project-owner-type"]
+  end
+
   def quiet_mode?
     @options[:quiet]
   end
 
   def owner_graphql_field
-    project_field = <<~GRAPHQL
-      projectV2(number: #{number}) {
-        field(name: "#{status_field}") {
-          ... on ProjectV2SingleSelectField {
-            options { id name }
+    <<~GRAPHQL
+      #{owner_type}(login: "#{owner}") {
+        projectV2(number: #{number}) {
+          field(name: "#{status_field}") {
+            ... on ProjectV2SingleSelectField {
+              options { id name }
+            }
           }
         }
       }
-    GRAPHQL
-
-    <<~GRAPHQL
-      organization(login: "#{owner}") { #{project_field} }
-      user(login: "#{owner}") { #{project_field} }
     GRAPHQL
   end
 
@@ -150,6 +153,12 @@ quiet_mode = project.quiet_mode?
 
 unless project.number && project.owner && project.status_field
   puts "Error: missing required options"
+  puts option_parser
+  exit 1
+end
+
+unless %w(user organization).include?(project.owner_type)
+  puts "Error: invalid project owner type"
   puts option_parser
   exit 1
 end
