@@ -340,6 +340,7 @@ class PullRequest
   end
 
   def mark_as_draft
+    output_loading_message("Marking #{to_s} as a draft...")
     `gh pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
   end
 
