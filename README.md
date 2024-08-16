@@ -21,3 +21,10 @@ query {
 bundle install
 ./project_pull_mover.rb
 ```
+
+Follow instructions about required options and run suggested `gh auth` commands to get the right permissions, e.g.,
+
+```sh
+error: your authentication token is missing required scopes [project]
+To request it, run:  gh auth refresh -s project
+```
