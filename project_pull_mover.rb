@@ -290,7 +290,11 @@ class PullRequest
   end
 
   def mergeable_state
-    @gql_data["mergeable"]
+    @mergeable_state ||= @gql_data["mergeable"]
+  end
+
+  def unknown_merge_state?
+    mergeable_state == "UNKNOWN"
   end
 
   def conflicting?
@@ -376,6 +380,7 @@ class PullRequest
     return false if has_in_progress_status? # no-op
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
     return false if conflicting? # don't put PR with merge conflicts into 'In progress'
+    return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
 
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_check_suites? || failing_required_statuses?
@@ -461,7 +466,8 @@ class PullRequest
   end
 
   def output_status_change_loading_message(target_column_name)
-    output_loading_message("Moving #{to_s} out of #{current_status_option_name} column to '#{target_column_name}'...")
+    output_loading_message("Moving #{to_s} out of '#{current_status_option_name}' column to " \
+      "'#{target_column_name}'...")
   end
 end
 
