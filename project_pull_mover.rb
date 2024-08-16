@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "json"
+require "mkmf"
 require "optparse"
 
 options = {}
@@ -194,6 +195,15 @@ end
 
 def output_info_message(content)
   puts "ℹ️ #{content}"
+end
+
+def send_desktop_notification(content:, title:)
+  has_osascript = find_executable("osascript")
+  if has_osascript
+    content = content.gsub(/"'/, "")
+    title = title.gsub(/"'/, "")
+    `osascript -e 'display notification "#{content}" with title "#{title}"'`
+  end
 end
 
 output_info_message(`gh auth status`) unless quiet_mode
@@ -650,5 +660,7 @@ if total_status_changes < 1
   output_info_message("No pull requests needed a different status") unless quiet_mode
 else
   units = total_status_changes == 1 ? "pull request" : "pull requests"
-  output_info_message("Updated status for #{total_status_changes} #{units}") unless quiet_mode
+  message = "Updated status for #{total_status_changes} #{units}"
+  output_info_message(message) unless quiet_mode
+  send_desktop_notification(content: message, title: project.title)
 end
