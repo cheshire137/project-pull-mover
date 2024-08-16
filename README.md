@@ -4,6 +4,8 @@ Script to change the status of a pull request in a GitHub project.
 
 ## How to use
 
+### Prerequisites
+
 Install the [`gh` command line tool](https://cli.github.com/). `gh` will be used to authenticate with the GitHub API.
 You'll also need [Ruby](https://www.ruby-lang.org/en/documentation/installation/) installed; I built this script
 with Ruby version 2.7.1p83.
@@ -23,6 +25,25 @@ query {
 You'll use the option IDs from the GraphQL query to tell project_pull_mover where to move your pull requests in your
 project.
 
+### Options
+
+```sh
+Usage: ./project_pull_mover.rb [options]
+    -p, --project-number NUM         Project number (required), e.g., 123 for https://github.com/orgs/someorg/projects/123
+    -o, --project-owner OWNER        Project owner login (required), e.g., someorg for https://github.com/orgs/someorg/projects/123
+    -t, --project-owner-type TYPE    Project owner type (required), either 'user' or 'organization'
+    -s, --status-field STATUS        Status field name (required), name of a single-select field in the project
+    -i, --in-progress ID             Option ID of 'In progress' column for status field
+    -a, --not-against-main ID        Option ID of 'Not against main' column for status field
+    -n, --needs-review ID            Option ID of 'Needs review' column for status field
+    -r, --ready-to-deploy ID         Option ID of 'Ready to deploy' column for status field
+    -c, --conflicting ID             Option ID of 'Conflicting' column for status field
+    -g, --ignored IDS                Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field
+    -q, --quiet                      Quiet mode, suppressing all output except errors
+```
+
+Run the script with:
+
 ```sh
 ./project_pull_mover.rb
 ```
@@ -39,6 +60,8 @@ Example use:
 ```sh
 ./project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status"
 ```
+
+### Example output
 
 Example no-op output:
 
