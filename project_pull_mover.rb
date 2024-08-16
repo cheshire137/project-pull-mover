@@ -52,18 +52,23 @@ output_success_message("Authenticated as GitHub user @#{username}")
 output_loading_message("Looking up items in project #{project_number} owned by @#{project_owner}...")
 json = `gh project item-list #{project_number} --owner #{project_owner} --format json`
 project_items = JSON.parse(json)["items"]
-project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
-total_pulls = project_pulls.size
-pull_units = total_pulls == 1 ? "pull request" : "pull requests"
-output_success_message("Found #{total_pulls} #{pull_units} in project")
 
 def replace_hyphens(str)
   str.split("-").map(&:capitalize).join("")
 end
 
+def repo_field_alias_for(owner:, name:)
+  "repo#{replace_hyphens(owner)}#{replace_hyphens(name)}"
+end
+
 class PullRequest
   def initialize(data)
     @data = data
+    @extra_info = {}
+  end
+
+  def set_extra_info(value)
+    @extra_info = value
   end
 
   def number
@@ -88,6 +93,10 @@ class PullRequest
 
   def to_s
     "#{repo_name_with_owner}##{number}"
+  end
+
+  def graphql_repo_field_alias
+    @graphql_repo_field_alias ||= repo_field_alias_for(owner: repo_owner, name: repo_name)
   end
 
   def graphql_field_alias
@@ -146,17 +155,18 @@ class PullRequest
   end
 end
 
-pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull_data, hash|
-  pull = PullRequest.new(pull_data)
+project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
+  .map { |pull_info| PullRequest.new(pull_info) }
+total_pulls = project_pulls.size
+pull_units = total_pulls == 1 ? "pull request" : "pull requests"
+output_success_message("Found #{total_pulls} #{pull_units} in project")
+
+pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
   repo_owner = pull.repo_owner
   repo_name = pull.repo_name
   hash[repo_owner] ||= {}
   hash[repo_owner][repo_name] ||= []
   hash[repo_owner][repo_name] << pull
-end
-
-def repo_field_alias_for(owner:, name:)
-  "repo#{replace_hyphens(owner)}#{replace_hyphens(name)}"
 end
 
 def repository_graphql_for(repo_owner:, repo_name:, pull_fields:)
@@ -179,7 +189,6 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map do |pull|
-      puts "- #{pull}"
       pull.graphql_for(status_field_name: status_field_name)
     end
 
@@ -191,6 +200,15 @@ end
 output_loading_message("Looking up more info about each pull request in project...")
 json = `gh api graphql -f query='query { #{repo_fields.join("\n")} }'`
 project_pull_info_by_repo_field_alias = JSON.parse(json)["data"]
+
+project_pulls.each do |pull|
+  pull_info_by_pull_alias = project_pull_info_by_repo_field_alias[pull.graphql_repo_field_alias]
+  next unless pull_info_by_pull_alias
+
+  extra_info = pull_info_by_pull_alias[pull.graphql_field_alias]
+  pull.set_extra_info(extra_info) if extra_info
+end
+
 output_success_message("Loaded extra pull request info")
 
 def failing_required_check_suites?(pull)
