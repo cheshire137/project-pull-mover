@@ -57,71 +57,102 @@ total_pulls = project_pulls.size
 pull_units = total_pulls == 1 ? "pull request" : "pull requests"
 output_success_message("Found #{total_pulls} #{pull_units} in project")
 
-pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
-  repo_name_with_owner = pull["content"]["repository"]
-  repo_owner, repo_name = repo_name_with_owner.split("/")
-  hash[repo_owner] ||= {}
-  hash[repo_owner][repo_name] ||= []
-  hash[repo_owner][repo_name] << pull
-end
-
 def replace_hyphens(str)
   str.split("-").map(&:capitalize).join("")
 end
 
-def pull_request_field_alias_for(repo_owner:, repo_name:, number:)
-  "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}#{number}"
-end
+class PullRequest
+  def initialize(data)
+    @data = data
+  end
 
-def pull_request_graphql_for(field_alias:, number:, status_field_name:)
-  <<~GRAPHQL
-    #{field_alias}: pullRequest(number: #{number}) {
-      isDraft
-      isInMergeQueue
-      reviewDecision
-      mergeable
-      baseRefName
-      commits(last: 1) {
-        nodes {
-          commit {
-            checkSuites(first: 100) {
-              nodes {
-                checkRuns(
-                  first: 100
-                  filterBy: {checkType: LATEST, conclusions: [ACTION_REQUIRED, TIMED_OUT, CANCELLED, FAILURE, STARTUP_FAILURE]}
-                ) {
-                  nodes {
-                    name
-                    isRequired(pullRequestNumber: #{number})
+  def number
+    @number ||= @data["content"]["number"]
+  end
+
+  def repo_name_with_owner
+    @repo_name_with_owner ||= @data["content"]["repository"]
+  end
+
+  def repo_owner
+    return @repo_owner if @repo_owner
+    @repo_owner, @repo_name = repo_name_with_owner.split("/")
+    @repo_owner
+  end
+
+  def repo_name
+    return @repo_name if @repo_name
+    @repo_owner, @repo_name = repo_name_with_owner.split("/")
+    @repo_name
+  end
+
+  def to_s
+    "#{repo_name_with_owner}##{number}"
+  end
+
+  def graphql_field_alias
+    @graphql_field_alias ||= "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}#{number}"
+  end
+
+  def graphql_for(status_field_name:)
+    <<~GRAPHQL
+      #{graphql_field_alias}: pullRequest(number: #{number}) {
+        isDraft
+        isInMergeQueue
+        reviewDecision
+        mergeable
+        baseRefName
+        commits(last: 1) {
+          nodes {
+            commit {
+              checkSuites(first: 100) {
+                nodes {
+                  checkRuns(
+                    first: 100
+                    filterBy: {checkType: LATEST, conclusions: [ACTION_REQUIRED, TIMED_OUT, CANCELLED, FAILURE, STARTUP_FAILURE]}
+                  ) {
+                    nodes {
+                      name
+                      isRequired(pullRequestNumber: #{number})
+                    }
                   }
                 }
               }
+              status {
+                contexts {
+                  context
+                  state
+                  isRequired(pullRequestNumber: #{number})
+                }
+              }
             }
-            status {
-              contexts {
-                context
-                state
-                isRequired(pullRequestNumber: #{number})
+          }
+        }
+        projectItems(first: 100) {
+          nodes {
+            id
+            project { id number }
+            fieldValueByName(name: "#{status_field_name}") {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                field { ... on ProjectV2SingleSelectField { id } }
+                optionId
+                name
               }
             }
           }
         }
       }
-      projectItems(first: 100) {
-        nodes {
-          id
-          project { id number }
-          fieldValueByName(name: "#{status_field_name}") {
-            ... on ProjectV2ItemFieldSingleSelectValue {
-              field { ... on ProjectV2SingleSelectField { id } }
-              optionId
-              name
-            }
-          }
-        }
-      }
-    }
-  GRAPHQL
+    GRAPHQL
+  end
+end
+
+pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull_data, hash|
+  pull = PullRequest.new(pull_data)
+  repo_owner = pull.repo_owner
+  repo_name = pull.repo_name
+  hash[repo_owner] ||= {}
+  hash[repo_owner][repo_name] ||= []
+  hash[repo_owner][repo_name] << pull
 end
 
 def repo_field_alias_for(owner:, name:)
@@ -148,11 +179,8 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map do |pull|
-      pull_number = pull["content"]["number"]
-      pull_field_alias = pull_request_field_alias_for(repo_owner: repo_owner, repo_name: repo_name,
-        number: pull_number)
-      pull_request_graphql_for(field_alias: pull_field_alias, number: pull_number,
-        status_field_name: status_field_name)
+      puts "- #{pull}"
+      pull.graphql_for(status_field_name: status_field_name)
     end
 
     repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name,
