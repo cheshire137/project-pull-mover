@@ -22,6 +22,7 @@ option_parser = OptionParser.new do |opts|
   opts.on("-g IDS", "--ignored", Array,
     "Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field")
   opts.on("-q", "--quiet", "Quiet mode, suppressing all output except errors")
+  opts.on("-h PATH", "--gh-path", String, "Path to gh executable")
 end
 option_parser.parse!(into: options)
 
@@ -37,6 +38,10 @@ class Project
 
   def set_graphql_data(value)
     @gql_data = value
+  end
+
+  def gh_path
+    @gh_path ||= @options[:"gh-path"] || "gh"
   end
 
   def status_field
@@ -165,6 +170,7 @@ end
 
 project = Project.new(options)
 quiet_mode = project.quiet_mode?
+gh_path = project.gh_path
 
 unless project.number && project.owner && project.status_field
   output_error_message("Error: missing required options")
@@ -221,7 +227,7 @@ output_info_message(`gh auth status`) unless quiet_mode
 unless quiet_mode
   output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
 end
-json = `gh project item-list #{project.number} --owner #{project.owner} --format json`
+json = `#{gh_path} project item-list #{project.number} --owner #{project.owner} --format json`
 project_items = JSON.parse(json)["items"]
 
 def replace_hyphens(str)
@@ -479,7 +485,7 @@ class PullRequest
 
   def mark_as_draft
     output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
-    `gh pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
+    `#{gh_path} pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
   end
 
   def can_mark_as_draft?
@@ -573,7 +579,7 @@ class PullRequest
 
   def set_project_item_status(option_id)
     return false unless option_id
-    `gh project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
+    `#{gh_path} project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
   end
 
   def output_status_change_loading_message(target_column_name)
@@ -583,6 +589,10 @@ class PullRequest
 
   def quiet_mode?
     @project.quiet_mode?
+  end
+
+  def gh_path
+    @project.gh_path
   end
 end
 
@@ -633,7 +643,7 @@ graphql_query = <<~GRAPHQL
     #{repo_fields.join("\n")}
   }
 GRAPHQL
-json = `gh api graphql -f query='#{graphql_query}'`
+json = `#{gh_path} api graphql -f query='#{graphql_query}'`
 graphql_data = JSON.parse(json)["data"]
 
 if graphql_data["user"]

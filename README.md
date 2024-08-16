@@ -44,6 +44,7 @@ Usage: ./project_pull_mover.rb [options]
     -c, --conflicting ID             Option ID of 'Conflicting' column for status field
     -g, --ignored IDS                Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field
     -q, --quiet                      Quiet mode, suppressing all output except errors
+    -h, --gh-path PATH               Path to gh executable
 ```
 
 Run the script with:
@@ -103,5 +104,5 @@ Make a directory for holding logs from the script. Here is an example config for
 
 ```sh
 # Runs every 30 minutes, Monday through Friday, between 9am and 5pm:
-*/31,*/1 9-17 * * 1-5 /path/to/this/repo/project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status" -q >/path/to/your/log/directory/stdout.log 2>/path/to/your/log/directory/stderr.log
+*/31,*/1 9-17 * * 1-5 /path/to/this/repo/project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status" -q -h "/usr/local/bin/gh" >/path/to/your/log/directory/stdout.log 2>/path/to/your/log/directory/stderr.log
 ```
