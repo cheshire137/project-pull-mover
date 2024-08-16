@@ -517,11 +517,12 @@ class PullRequest
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
     return false if conflicting? # don't put PR with merge conflicts into 'In progress'
     return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
+    return false unless against_default_branch? # if not based on 'main', should be in 'Not against main'
 
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_check_suites? || failing_required_statuses?
     else
-      against_default_branch? && !has_ignored_status?
+      !has_ignored_status?
     end
   end
 
