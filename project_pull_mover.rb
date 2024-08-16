@@ -44,3 +44,16 @@ project_pulls = project_items.select { |item| item["content"]["type"] == "PullRe
 total_pulls = project_pulls.size
 pull_units = total_pulls == 1 ? "pull request" : "pull requests"
 puts "Found #{total_pulls} #{pull_units} in project"
+
+pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
+  repo_name_with_owner = pull["content"]["repository"]
+  repo_owner, repo_name = repo_name_with_owner.split("/")
+  hash[repo_owner] ||= {}
+  hash[repo_owner][repo_name] ||= []
+  hash[repo_owner][repo_name] << pull
+end
+
+puts "Found #{pulls_by_repo_owner_and_repo_name.size} unique repository owner(s)"
+pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
+  puts "Found pull requests in #{pulls_by_repo_name.size} unique repositories by @#{repo_owner}"
+end
