@@ -22,8 +22,7 @@ You'll use the option IDs from the GraphQL query to tell project_pull_mover wher
 project.
 
 ```sh
-bundle install # install necessary Ruby gems
-./project_pull_mover.rb # run the script
+./project_pull_mover.rb
 ```
 
 Follow instructions about required options and run suggested `gh auth` commands to get the right permissions, e.g.,

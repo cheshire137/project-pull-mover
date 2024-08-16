@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require "octokit"
+require "json"
 require "optparse"
 
 options = {}
@@ -106,12 +106,7 @@ def output_info_message(content)
   puts "ℹ️ #{content}"
 end
 
-output_loading_message("Authenticating with GitHub...")
-token = `gh auth token`
-client = Octokit::Client.new(access_token: token)
-username = client.user[:login]
-output_success_message("Authenticated as GitHub user @#{username}")
-
+output_info_message(`gh auth status`)
 output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
 
 output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
