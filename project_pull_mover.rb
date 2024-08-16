@@ -341,12 +341,20 @@ class PullRequest
 
   def should_set_in_progress_status?
     return false unless @project.in_progress_option_id
+    return false if has_in_progress_status?
     draft? && against_default_branch? && !has_in_progress_status? && !has_ignored_status?
   end
 
   def should_set_needs_review_status?
     return false unless @project.needs_review_option_id
+    return false if has_needs_review_status?
     !draft? && against_default_branch? && has_in_progress_status? && !approved?
+  end
+
+  def should_set_not_against_main_status?
+    return false unless @project.not_against_main_option_id
+    return false if has_not_against_main_status?
+    !against_default_branch? && !has_ignored_status?
   end
 
   private
@@ -421,9 +429,12 @@ project_pulls.each do |pull|
   if pull.should_set_in_progress_status?
     total_status_changes += 1
     pull.set_in_progress_status
-  elsif should_set_needs_review_status?
+  elsif pull.should_set_needs_review_status?
     total_status_changes += 1
     pull.set_needs_review_status
+  elsif pull.should_set_not_against_main_status?
+    total_status_changes += 1
+    pull.set_not_against_main_status
   end
 end
 
