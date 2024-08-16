@@ -274,6 +274,10 @@ class PullRequest
     @gql_data["reviewDecision"]
   end
 
+  def approved?
+    review_decision == "APPROVED"
+  end
+
   def base_branch
     @gql_data["baseRefName"]
   end
@@ -336,8 +340,13 @@ class PullRequest
   end
 
   def should_set_in_progress_status?
-    draft? && @project.in_progress_option_id && against_default_branch? && !has_in_progress_status? &&
-      !has_ignored_status?
+    return false unless @project.in_progress_option_id
+    draft? && against_default_branch? && !has_in_progress_status? && !has_ignored_status?
+  end
+
+  def should_set_needs_review_status?
+    return false unless @project.needs_review_option_id
+    !draft? && against_default_branch? && has_in_progress_status? && !approved?
   end
 
   private
@@ -412,6 +421,9 @@ project_pulls.each do |pull|
   if pull.should_set_in_progress_status?
     total_status_changes += 1
     pull.set_in_progress_status
+  elsif should_set_needs_review_status?
+    total_status_changes += 1
+    pull.set_needs_review_status
   end
 end
 
