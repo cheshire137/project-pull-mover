@@ -1,6 +1,8 @@
 # project-pull-mover
 
-Script to change the status of a pull request in a GitHub project.
+Script to change the status of a pull request in a GitHub project. On macOS, when the script is run and any pull
+requests have their project status changed, a desktop notification will appear with the count of how many PRs were
+moved.
 
 ## How to use
 
