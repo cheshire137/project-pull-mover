@@ -349,9 +349,15 @@ class PullRequest
   end
 
   def should_set_in_progress_status?
-    return false unless @project.in_progress_option_id
-    return false if has_in_progress_status?
-    draft? && against_default_branch? && !has_in_progress_status? && !has_ignored_status?
+    return false unless @project.in_progress_option_id # can't
+    return false if has_in_progress_status? # no-op
+    return false if enqueued? # don't say it's in progress if we're already in the merge queue
+
+    if has_needs_review_status? || has_ready_to_deploy_status?
+      failing_required_check_suites? || failing_required_statuses?
+    else
+      against_default_branch? && !has_ignored_status?
+    end
   end
 
   def should_set_needs_review_status?
