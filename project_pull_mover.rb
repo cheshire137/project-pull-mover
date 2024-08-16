@@ -557,32 +557,32 @@ class PullRequest
     if should_set_in_progress_status?
       set_in_progress_status
       mark_as_draft if can_mark_as_draft?
-      return true
+      return @project.in_progress_option_name
     end
 
     if should_set_needs_review_status?
       set_needs_review_status
-      return true
+      return @project.needs_review_option_name
     end
 
     if should_set_not_against_main_status?
       set_not_against_main_status
       mark_as_draft if can_mark_as_draft?
-      return true
+      return @project.not_against_main_option_name
     end
 
     if should_set_ready_to_deploy_status?
       set_ready_to_deploy_status
-      return true
+      return @project.ready_to_deploy_option_name
     end
 
     if should_set_conflicting_status?
       set_conflicting_status
       mark_as_draft if can_mark_as_draft?
-      return true
+      return @project.conflicting_option_name
     end
 
-    false
+    nil
   end
 
   private
@@ -689,7 +689,8 @@ output_success_message("Loaded extra pull request info") unless quiet_mode
 
 total_status_changes = 0
 project_pulls.each do |pull|
-  if pull.change_status_if_necessary
+  new_pull_status_option_name = pull.change_status_if_necessary
+  if new_pull_status_option_name
     total_status_changes += 1
   end
 end
