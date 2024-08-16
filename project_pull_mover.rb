@@ -19,6 +19,7 @@ option_parser = OptionParser.new do |opts|
   opts.on("-c ID", "--conflicting", String, "Option ID of 'Conflicting' column for status field")
   opts.on("-g IDS", "--ignored", Array,
     "Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field")
+  opts.on("-q", "--quiet", "Quiet mode, suppressing all output except errors")
 end
 option_parser.parse!(into: options)
 
@@ -42,6 +43,10 @@ class Project
 
   def owner
     @owner ||= @options[:"project-owner"]
+  end
+
+  def quiet_mode?
+    @options[:quiet]
   end
 
   def owner_graphql_field
@@ -141,6 +146,7 @@ class Project
 end
 
 project = Project.new(options)
+quiet_mode = project.quiet_mode?
 
 unless project.number && project.owner && project.status_field
   puts "Error: missing required options"
@@ -166,9 +172,11 @@ def output_info_message(content)
   puts "ℹ️ #{content}"
 end
 
-output_info_message(`gh auth status`)
+output_info_message(`gh auth status`) unless quiet_mode
 
-output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
+unless quiet_mode
+  output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
+end
 json = `gh project item-list #{project.number} --owner #{project.owner} --format json`
 project_items = JSON.parse(json)["items"]
 
@@ -401,32 +409,32 @@ class PullRequest
   end
 
   def set_in_progress_status
-    output_status_change_loading_message(@project.in_progress_option_name)
+    output_status_change_loading_message(@project.in_progress_option_name) unless quiet_mode?
     set_project_item_status(@project.in_progress_option_id)
   end
 
   def set_needs_review_status
-    output_status_change_loading_message(@project.needs_review_option_name)
+    output_status_change_loading_message(@project.needs_review_option_name) unless quiet_mode?
     set_project_item_status(@project.needs_review_option_id)
   end
 
   def set_not_against_main_status
-    output_status_change_loading_message(@project.not_against_main_option_name)
+    output_status_change_loading_message(@project.not_against_main_option_name) unless quiet_mode?
     set_project_item_status(@project.not_against_main_option_id)
   end
 
   def set_ready_to_deploy_status
-    output_status_change_loading_message(@project.ready_to_deploy_option_name)
+    output_status_change_loading_message(@project.ready_to_deploy_option_name) unless quiet_mode?
     set_project_item_status(@project.ready_to_deploy_option_id)
   end
 
   def set_conflicting_status
-    output_status_change_loading_message(@project.conflicting_option_name)
+    output_status_change_loading_message(@project.conflicting_option_name) unless quiet_mode?
     set_project_item_status(@project.conflicting_option_id)
   end
 
   def mark_as_draft
-    output_loading_message("Marking #{to_s} as a draft...")
+    output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
     `gh pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
   end
 
@@ -526,7 +534,11 @@ class PullRequest
 
   def output_status_change_loading_message(target_column_name)
     output_loading_message("Moving #{to_s} out of '#{current_status_option_name}' column to " \
-      "'#{target_column_name}'...")
+      "'#{target_column_name}'...") unless quiet_mode?
+  end
+
+  def quiet_mode?
+    @project.quiet_mode?
   end
 end
 
@@ -534,7 +546,7 @@ project_pulls = project_items.select { |item| item["content"]["type"] == "PullRe
   .map { |pull_info| PullRequest.new(pull_info, project: project) }
 total_pulls = project_pulls.size
 pull_units = total_pulls == 1 ? "pull request" : "pull requests"
-output_success_message("Found #{total_pulls} #{pull_units} in project")
+output_success_message("Found #{total_pulls} #{pull_units} in project") unless quiet_mode
 
 pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
   repo_owner = pull.repo_owner
@@ -560,7 +572,9 @@ repo_fields = []
 pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   total_repos = pulls_by_repo_name.size
   repo_units = total_repos == 1 ? "repository" : "repositories"
-  output_info_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
+  unless quiet_mode
+    output_info_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
+  end
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map(&:graphql_field)
@@ -568,7 +582,7 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   end
 end
 
-output_loading_message("Looking up more info about each pull request in project...")
+output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode
 graphql_query = <<~GRAPHQL
   query {
     #{project.owner_graphql_field}
@@ -584,7 +598,9 @@ elsif graphql_data["organization"]
   project.set_graphql_data(graphql_data["organization"])
 end
 
-output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
+unless quiet_mode
+  output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
+end
 
 project_pulls.each do |pull|
   repo_gql_data = graphql_data[pull.graphql_repo_field_alias]
@@ -597,7 +613,7 @@ project_pulls.each do |pull|
   pull.set_graphql_data(extra_info) if extra_info
 end
 
-output_success_message("Loaded extra pull request info")
+output_success_message("Loaded extra pull request info") unless quiet_mode
 
 total_status_changes = 0
 project_pulls.each do |pull|
@@ -607,8 +623,8 @@ project_pulls.each do |pull|
 end
 
 if total_status_changes < 1
-  output_info_message("No pull requests needed a different status")
+  output_info_message("No pull requests needed a different status") unless quiet_mode
 else
   units = total_status_changes == 1 ? "pull request" : "pull requests"
-  output_info_message("Updated status for #{total_status_changes} #{units}")
+  output_info_message("Updated status for #{total_status_changes} #{units}") unless quiet_mode
 end
