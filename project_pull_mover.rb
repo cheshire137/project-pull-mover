@@ -11,14 +11,14 @@ option_parser = OptionParser.new do |opts|
   opts.on("-o OWNER", "--project-owner", String,
     "Project owner login (required), e.g., someorg for https://github.com/orgs/someorg/projects/123")
   opts.on("-s STATUS", "--status-field", String,
-    "Status field name, name of a single-select field in the project")
-  opts.on("-i ID", "--in-progress", String, "Option ID of 'In progress' column")
-  opts.on("-a ID", "--not-against-main", String, "Option ID of 'Not against main' column")
-  opts.on("-n ID", "--needs-review", String, "Option ID of 'Needs review' column")
-  opts.on("-r ID", "--ready-to-deploy", String, "Option ID of 'Ready to deploy' column")
-  opts.on("-c ID", "--conflicting", String, "Option ID of 'Conflicting' column")
+    "Status field name (required), name of a single-select field in the project")
+  opts.on("-i ID", "--in-progress", String, "Option ID of 'In progress' column for status field")
+  opts.on("-a ID", "--not-against-main", String, "Option ID of 'Not against main' column for status field")
+  opts.on("-n ID", "--needs-review", String, "Option ID of 'Needs review' column for status field")
+  opts.on("-r ID", "--ready-to-deploy", String, "Option ID of 'Ready to deploy' column for status field")
+  opts.on("-c ID", "--conflicting", String, "Option ID of 'Conflicting' column for status field")
   opts.on("-g IDS", "--ignored", Array,
-    "Comma-separated list of option IDs of columns like 'Blocked' or 'On hold'")
+    "Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field")
 end
 option_parser.parse!(into: options)
 
@@ -59,6 +59,11 @@ class Project
     @conflicting_option_id ||= @options[:"conflicting"]
   end
 
+  def any_option_ids?
+    in_progress_option_id || not_against_main_option_id || needs_review_option_id || ready_to_deploy_option_id ||
+      conflicting_option_id
+  end
+
   def ignored_option_ids
     @ignored_option_ids ||= @options[:"ignored"] || []
   end
@@ -67,6 +72,13 @@ end
 project = Project.new(options)
 
 unless project.number && project.owner && project.status_field
+  puts "Error: missing required options"
+  puts option_parser
+  exit 1
+end
+
+unless project.any_option_ids?
+  puts "Error: you must specify at least one option ID for the status field"
   puts option_parser
   exit 1
 end
