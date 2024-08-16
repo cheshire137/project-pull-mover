@@ -350,11 +350,14 @@ class PullRequest
   end
 
   def should_set_needs_review_status?
-    return false unless @project.needs_review_option_id
-    return false if has_needs_review_status?
+    return false unless @project.needs_review_option_id # can't
+    return false if has_needs_review_status? # no-op
+    return false if conflicting? # don't ask for review when there are conflicts to resolve
+    return false if draft? # don't ask for review if it's still a draft
+    return false unless against_default_branch? # don't ask for review when base branch will change
+    return false if enqueued? # don't ask for review if we're already in the merge queue
 
-    !draft? && against_default_branch? && !approved? && !conflicting? &&
-      (has_in_progress_status? || has_conflicting_status?)
+    !approved? && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status?)
   end
 
   def should_set_not_against_main_status?
