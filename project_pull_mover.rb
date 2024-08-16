@@ -270,6 +270,10 @@ class PullRequest
     @gql_data["mergeable"]
   end
 
+  def conflicting?
+    mergeable_state == "CONFLICTING"
+  end
+
   def review_decision
     @gql_data["reviewDecision"]
   end
@@ -363,6 +367,12 @@ class PullRequest
     !draft? && enqueued? && !has_ignored_status?
   end
 
+  def should_set_conflicting_status?
+    return false unless @project.conflicting_option_id
+    return false if has_conflicting_status?
+    against_default_branch? && conflicting? && !enqueued? && !has_ignored_status?
+  end
+
   def change_status_if_necessary
     if should_set_in_progress_status?
       set_in_progress_status
@@ -381,6 +391,12 @@ class PullRequest
 
     if should_set_ready_to_deploy_status?
       set_ready_to_deploy_status
+      return true
+    end
+
+    if should_set_conflicting_status?
+      set_conflicting_status
+      mark_as_draft
       return true
     end
 
