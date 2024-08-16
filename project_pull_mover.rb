@@ -234,6 +234,10 @@ class PullRequest
     end
   end
 
+  def project_item_id
+    @project_item_id ||= project_item["id"]
+  end
+
   def project_global_id
     return unless project_item
     @project_global_id ||= project_item["project"]["id"]
@@ -300,6 +304,37 @@ class PullRequest
 
   def has_ignored_status?
     @project.ignored_option_ids.include?(current_status_option_id)
+  end
+
+  def set_in_progress_status
+    set_project_item_status(@project.in_progress_option_id)
+  end
+
+  def set_needs_review_status
+    set_project_item_status(@project.needs_review_option_id)
+  end
+
+  def set_not_against_main_status
+    set_project_item_status(@project.not_against_main_option_id)
+  end
+
+  def set_ready_to_deploy_status
+    set_project_item_status(@project.ready_to_deploy_option_id)
+  end
+
+  def set_conflicting_status
+    set_project_item_status(@project.conflicting_option_id)
+  end
+
+  def mark_as_draft
+    `gh pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
+  end
+
+  private
+
+  def set_project_item_status(option_id)
+    return false unless option_id
+    `gh project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
   end
 end
 
