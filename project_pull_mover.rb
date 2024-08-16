@@ -64,6 +64,17 @@ class Project
       conflicting_option_id
   end
 
+  def enabled_options
+    result = []
+    result << "In progress" if in_progress_option_id
+    result << "Not against main" if not_against_main_option_id
+    result << "Needs review" if needs_review_option_id
+    result << "Ready to deploy" if ready_to_deploy_option_id
+    result << "Conflicting" if conflicting_option_id
+    result << "Ignored" if ignored_option_ids.any?
+    result
+  end
+
   def ignored_option_ids
     @ignored_option_ids ||= @options[:"ignored"] || []
   end
@@ -100,6 +111,8 @@ token = `gh auth token`
 client = Octokit::Client.new(access_token: token)
 username = client.user[:login]
 output_success_message("Authenticated as GitHub user @#{username}")
+
+output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
 
 output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
 json = `gh project item-list #{project.number} --owner #{project.owner} --format json`
