@@ -222,7 +222,7 @@ def send_desktop_notification(content:, title:)
   end
 end
 
-output_info_message(`gh auth status`) unless quiet_mode
+output_info_message(`#{gh_path} auth status`) unless quiet_mode
 
 unless quiet_mode
   output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
