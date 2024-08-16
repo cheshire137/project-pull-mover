@@ -68,9 +68,11 @@ Example output when some pull requests had the wrong 'Status':
 ℹ️ Updated status for 3 pull requests
 ```
 
-Sample cron config:
+## Automatic runs with cron
+
+Make a directory for holding logs from the script. Here is an example config for crontab:
 
 ```sh
 # Runs every 30 minutes, Monday through Friday, between 9am and 5pm:
-*/30 9-17 * * 1-5 /path/to/project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status" -q
+*/30 9-17 * * 1-5 /path/to/this/repo/project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status" -q >/path/to/your/log/directory/stdout.log 2>/path/to/your/log/directory/stderr.log
 ```
