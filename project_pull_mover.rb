@@ -25,6 +25,11 @@ option_parser.parse!(into: options)
 class Project
   def initialize(options)
     @options = options
+    @gql_data = {}
+  end
+
+  def set_graphql_data(value)
+    @gql_data = value
   end
 
   def status_field
@@ -39,20 +44,57 @@ class Project
     @owner ||= @options[:"project-owner"]
   end
 
+  def owner_graphql_field
+    project_field = <<~GRAPHQL
+      projectV2(number: #{number}) {
+        field(name: "#{status_field}") {
+          ... on ProjectV2SingleSelectField {
+            options { id name }
+          }
+        }
+      }
+    GRAPHQL
+
+    <<~GRAPHQL
+      organization(login: "#{owner}") { #{project_field} }
+      user(login: "#{owner}") { #{project_field} }
+    GRAPHQL
+  end
+
+  def in_progress_option_name
+    @in_progress_option_name ||= option_name_for(in_progress_option_id) || "In progress"
+  end
+
   def in_progress_option_id
     @in_progress_option_id ||= @options[:"in-progress"]
+  end
+
+  def not_against_main_option_name
+    @not_against_main_option_name ||= option_name_for(not_against_main_option_id) || "Not against main"
   end
 
   def not_against_main_option_id
     @not_against_main_option_id ||= @options[:"not-against-main"]
   end
 
+  def needs_review_option_name
+    @needs_review_option_name ||= option_name_for(needs_review_option_id) || "Needs review"
+  end
+
   def needs_review_option_id
     @needs_review_option_id ||= @options[:"needs-review"]
   end
 
+  def ready_to_deploy_option_name
+    @ready_to_deploy_option_name ||= option_name_for(ready_to_deploy_option_id) || "Ready to deploy"
+  end
+
   def ready_to_deploy_option_id
     @ready_to_deploy_option_id ||= @options[:"ready-to-deploy"]
+  end
+
+  def conflicting_option_name
+    @conflicting_option_name ||= option_name_for(conflicting_option_id) || "Conflicting"
   end
 
   def conflicting_option_id
@@ -66,17 +108,35 @@ class Project
 
   def enabled_options
     result = []
-    result << "In progress" if in_progress_option_id
-    result << "Not against main" if not_against_main_option_id
-    result << "Needs review" if needs_review_option_id
-    result << "Ready to deploy" if ready_to_deploy_option_id
-    result << "Conflicting" if conflicting_option_id
-    result << "Ignored" if ignored_option_ids.any?
-    result
+    result << in_progress_option_name if in_progress_option_id
+    result << not_against_main_option_name if not_against_main_option_id
+    result << needs_review_option_name if needs_review_option_id
+    result << ready_to_deploy_option_name if ready_to_deploy_option_id
+    result << conflicting_option_name if conflicting_option_id
+    result.concat(ignored_option_names)
+  end
+
+  def ignored_option_names
+    return @ignored_option_names if @ignored_option_names
+    names = ignored_option_ids.map { |option_id| option_name_for(option_id) }.compact
+    names = ["Ignored"] if names.size < 1
+    @ignored_option_names = names
   end
 
   def ignored_option_ids
     @ignored_option_ids ||= @options[:"ignored"] || []
+  end
+
+  private
+
+  def option_name_for(option_id)
+    project_data = @gql_data["projectV2"]
+    return unless project_data
+
+    option_data = project_data["field"]["options"].detect { |option| option["id"] == option_id }
+    return unless option_data
+
+    option_data["name"]
   end
 end
 
@@ -107,7 +167,6 @@ def output_info_message(content)
 end
 
 output_info_message(`gh auth status`)
-output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
 
 output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
 json = `gh project item-list #{project.number} --owner #{project.owner} --format json`
@@ -342,27 +401,27 @@ class PullRequest
   end
 
   def set_in_progress_status
-    output_status_change_loading_message("In progress")
+    output_status_change_loading_message(@project.in_progress_option_name)
     set_project_item_status(@project.in_progress_option_id)
   end
 
   def set_needs_review_status
-    output_status_change_loading_message("Needs review")
+    output_status_change_loading_message(@project.needs_review_option_name)
     set_project_item_status(@project.needs_review_option_id)
   end
 
   def set_not_against_main_status
-    output_status_change_loading_message("Not against main")
+    output_status_change_loading_message(@project.not_against_main_option_name)
     set_project_item_status(@project.not_against_main_option_id)
   end
 
   def set_ready_to_deploy_status
-    output_status_change_loading_message("Ready to deploy")
+    output_status_change_loading_message(@project.ready_to_deploy_option_name)
     set_project_item_status(@project.ready_to_deploy_option_id)
   end
 
   def set_conflicting_status
-    output_status_change_loading_message("Conflicting")
+    output_status_change_loading_message(@project.conflicting_option_name)
     set_project_item_status(@project.conflicting_option_id)
   end
 
@@ -510,11 +569,25 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
 end
 
 output_loading_message("Looking up more info about each pull request in project...")
-json = `gh api graphql -f query='query { #{repo_fields.join("\n")} }'`
-project_pull_info_by_repo_field_alias = JSON.parse(json)["data"]
+graphql_query = <<~GRAPHQL
+  query {
+    #{project.owner_graphql_field}
+    #{repo_fields.join("\n")}
+  }
+GRAPHQL
+json = `gh api graphql -f query='#{graphql_query}'`
+graphql_data = JSON.parse(json)["data"]
+
+if graphql_data["user"]
+  project.set_graphql_data(graphql_data["user"])
+elsif graphql_data["organization"]
+  project.set_graphql_data(graphql_data["organization"])
+end
+
+output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
 
 project_pulls.each do |pull|
-  repo_gql_data = project_pull_info_by_repo_field_alias[pull.graphql_repo_field_alias]
+  repo_gql_data = graphql_data[pull.graphql_repo_field_alias]
   next unless repo_gql_data
 
   repo = Repository.new(repo_gql_data)
