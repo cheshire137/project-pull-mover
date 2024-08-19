@@ -515,9 +515,8 @@ class PullRequest
     !draft? && !enqueued?
   end
 
-  def should_set_in_progress_status?
+  def should_have_in_progress_status?
     return false unless @project.in_progress_option_id # can't
-    return false if has_in_progress_status? # no-op
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
     return false if conflicting? # don't put PR with merge conflicts into 'In progress'
     return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
@@ -530,9 +529,8 @@ class PullRequest
     end
   end
 
-  def should_set_needs_review_status?
+  def should_have_needs_review_status?
     return false unless @project.needs_review_option_id # can't
-    return false if has_needs_review_status? # no-op
     return false if conflicting? # don't ask for review when there are conflicts to resolve
     return false if draft? # don't ask for review if it's still a draft
     return false if daisy_chained? # don't ask for review when base branch will change
@@ -541,51 +539,53 @@ class PullRequest
     !approved? && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status?)
   end
 
-  def should_set_not_against_main_status?
+  def should_have_not_against_main_status?
     return false unless @project.not_against_main_option_id # can't
-    return false if has_not_against_main_status? # no-op
     daisy_chained? && !has_ignored_status?
   end
 
-  def should_set_ready_to_deploy_status?
+  def should_have_ready_to_deploy_status?
     return false unless @project.ready_to_deploy_option_id # can't
-    return false if has_ready_to_deploy_status? # no-op
     !draft? && enqueued? && !has_ignored_status?
   end
 
-  def should_set_conflicting_status?
+  def should_have_conflicting_status?
     return false unless @project.conflicting_option_id # can't
-    return false if has_conflicting_status? # no-op
     against_default_branch? && conflicting? && !enqueued? && !has_ignored_status?
   end
 
   def change_status_if_necessary
-    if should_set_conflicting_status?
-      set_conflicting_status
+    if should_have_conflicting_status?
+      no_op = has_conflicting_status?
+      set_conflicting_status unless no_op
       mark_as_draft if can_mark_as_draft?
-      return @project.conflicting_option_name
+      return no_op ? nil : @project.conflicting_option_name
     end
 
-    if should_set_not_against_main_status?
-      set_not_against_main_status
+    if should_have_not_against_main_status?
+      no_op = has_not_against_main_status?
+      set_not_against_main_status unless no_op
       mark_as_draft if can_mark_as_draft?
-      return @project.not_against_main_option_name
+      return no_op ? nil : @project.not_against_main_option_name
     end
 
-    if should_set_ready_to_deploy_status?
-      set_ready_to_deploy_status
-      return @project.ready_to_deploy_option_name
+    if should_have_ready_to_deploy_status?
+      no_op = has_ready_to_deploy_status?
+      set_ready_to_deploy_status unless no_op
+      return no_op ? nil : @project.ready_to_deploy_option_name
     end
 
-    if should_set_needs_review_status?
-      set_needs_review_status
-      return @project.needs_review_option_name
+    if should_have_needs_review_status?
+      no_op = has_needs_review_status?
+      set_needs_review_status unless no_op
+      return no_op ? nil : @project.needs_review_option_name
     end
 
-    if should_set_in_progress_status?
-      set_in_progress_status
+    if should_have_in_progress_status?
+      no_op = has_in_progress_status?
+      set_in_progress_status unless no_op
       mark_as_draft if can_mark_as_draft?
-      return @project.in_progress_option_name
+      return no_op ? nil : @project.in_progress_option_name
     end
 
     nil
