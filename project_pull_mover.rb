@@ -516,6 +516,7 @@ class PullRequest
   end
 
   def should_have_in_progress_status?
+    return false if has_ignored_status?
     return false unless @project.in_progress_option_id # can't
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
     return false if conflicting? # don't put PR with merge conflicts into 'In progress'
@@ -525,11 +526,12 @@ class PullRequest
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_check_suites? || failing_required_statuses?
     else
-      !has_ignored_status? && !approved?
+      !approved?
     end
   end
 
   def should_have_needs_review_status?
+    return false if has_ignored_status?
     return false unless @project.needs_review_option_id # can't
     return false if conflicting? # don't ask for review when there are conflicts to resolve
     return false if draft? # don't ask for review if it's still a draft
@@ -540,21 +542,26 @@ class PullRequest
   end
 
   def should_have_not_against_main_status?
+    return false if has_ignored_status?
     return false unless @project.not_against_main_option_id # can't
-    daisy_chained? && !has_ignored_status?
+    daisy_chained?
   end
 
   def should_have_ready_to_deploy_status?
+    return false if has_ignored_status?
     return false unless @project.ready_to_deploy_option_id # can't
-    !draft? && enqueued? && !has_ignored_status?
+    !draft? && enqueued?
   end
 
   def should_have_conflicting_status?
+    return false if has_ignored_status?
     return false unless @project.conflicting_option_id # can't
-    against_default_branch? && conflicting? && !enqueued? && !has_ignored_status?
+    against_default_branch? && conflicting? && !enqueued?
   end
 
   def change_status_if_necessary
+    return nil if has_ignored_status?
+
     if should_have_conflicting_status?
       no_op = has_conflicting_status?
       set_conflicting_status unless no_op
