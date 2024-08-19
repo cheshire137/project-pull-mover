@@ -525,7 +525,7 @@ class PullRequest
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_check_suites? || failing_required_statuses?
     else
-      !has_ignored_status?
+      !has_ignored_status? && !approved?
     end
   end
 
