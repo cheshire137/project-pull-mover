@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+require "digest"
 require "json"
 require "optparse"
 
@@ -64,10 +65,6 @@ class Project
 
   def number
     @number ||= @options[:"project-number"]
-  end
-
-  def failing_test_label_name
-    @failing_test_label_name ||= @options[:"failing-test-label"]
   end
 
   def owner
@@ -186,6 +183,14 @@ class Project
   end
 end
 
+failing_test_label_name = options[:"failing-test-label"]
+if failing_test_label_name
+  failing_test_label_name = failing_test_label_name.strip
+  if failing_test_label_name.size < 1
+    failing_test_label_name = nil
+  end
+end
+
 project = Project.new(options)
 gh_path = project.gh_path
 
@@ -263,13 +268,32 @@ def repo_field_alias_for(owner:, name:)
   "repo#{replace_hyphens(owner)}#{replace_hyphens(name)}"
 end
 
+def label_field_alias_for(name:)
+  "label#{Digest::MD5.hexdigest(name)}"
+end
+
 class Repository
-  def initialize(gql_data)
+  def initialize(gql_data, failing_test_label_name: nil)
     @gql_data = gql_data
+    @raw_failing_test_label_name = failing_test_label_name
   end
 
   def default_branch
     @default_branch ||= @gql_data["defaultBranchRef"]["name"]
+  end
+
+  def failing_test_label_name
+    return @failing_test_label_name if defined?(@failing_test_label_name)
+    return unless @raw_failing_test_label_name
+
+    field_alias = label_field_alias_for(name: @raw_failing_test_label_name)
+    label_data = @gql_data[field_alias]
+    unless label_data
+      @failing_test_label_name = nil
+      return
+    end
+
+    @failing_test_label_name = label_data["name"]
   end
 end
 
@@ -580,26 +604,26 @@ class PullRequest
   end
 
   def should_have_failing_test_label?
-    failing_required_builds? && @project.failing_test_label_name.present?
+    failing_required_builds? && failing_test_label_name && failing_test_label_name.size > 0
   end
 
   def apply_label_if_necessary
     if should_have_failing_test_label?
-      apply_label(label_name: @project.failing_test_label_name)
-      return @project.failing_test_label_name
+      apply_label(label_name: failing_test_label_name)
+      return failing_test_label_name
     end
 
     nil
   end
 
   def should_remove_failing_test_label?
-    !failing_required_builds? && @project.failing_test_label_name.present?
+    !failing_required_builds? && failing_test_label_name && failing_test_label_name.size > 0
   end
 
   def remove_label_if_necessary
     if should_remove_failing_test_label?
-      remove_label(label_name: @project.failing_test_label_name)
-      return @project.failing_test_label_name
+      remove_label(label_name: failing_test_label_name)
+      return failing_test_label_name
     end
 
     nil
@@ -646,6 +670,10 @@ class PullRequest
 
   private
 
+  def failing_test_label_name
+    @repo.failing_test_label_name
+  end
+
   def last_commit
     return @last_commit if defined?(@last_commit)
     node = @gql_data["commits"]["nodes"][0]
@@ -687,18 +715,31 @@ pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull,
   hash[repo_owner][repo_name] << pull
 end
 
-def repository_graphql_for(repo_owner:, repo_name:, pull_fields:)
+def label_graphql_for(name:)
+  field_alias = label_field_alias_for(name: name)
+  <<~GRAPHQL
+    #{field_alias}: label(name: "#{name}") { name }
+  GRAPHQL
+end
+
+def repository_graphql_for(repo_owner:, repo_name:, pull_fields: [], label_fields: [])
   field_alias = repo_field_alias_for(owner: repo_owner, name: repo_name)
   <<~GRAPHQL
     #{field_alias}: repository(owner: "#{repo_owner}", name: "#{repo_name}") {
       id
       defaultBranchRef { name }
+      #{label_fields.join("\n")}
       #{pull_fields.join("\n")}
     }
   GRAPHQL
 end
 
 repo_fields = []
+label_fields = []
+
+if failing_test_label_name && failing_test_label_name.strip.size > 0
+  label_fields << label_graphql_for(name: failing_test_label_name)
+end
 
 pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   total_repos = pulls_by_repo_name.size
@@ -709,7 +750,8 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map(&:graphql_field)
-    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name, pull_fields: pull_fields)
+    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name, pull_fields: pull_fields,
+      label_fields: label_fields)
   end
 end
 
@@ -737,7 +779,7 @@ project_pulls.each do |pull|
   repo_gql_data = graphql_data[pull.graphql_repo_field_alias]
   next unless repo_gql_data
 
-  repo = Repository.new(repo_gql_data)
+  repo = Repository.new(repo_gql_data, failing_test_label_name: failing_test_label_name)
   pull.set_repo(repo)
 
   extra_info = repo_gql_data[pull.graphql_field_alias]
