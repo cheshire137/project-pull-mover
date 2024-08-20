@@ -366,6 +366,10 @@ class PullRequest
     GRAPHQL
   end
 
+  def failing_required_builds?
+    failing_required_check_suites? || failing_required_statuses?
+  end
+
   def failing_required_check_suites?
     return false unless last_commit
 
@@ -524,7 +528,7 @@ class PullRequest
     return false if daisy_chained? # if not based on 'main', should be in 'Not against main'
 
     if has_needs_review_status? || has_ready_to_deploy_status?
-      failing_required_check_suites? || failing_required_statuses? || draft?
+      failing_required_builds? || draft?
     else # Conflicting, Not against main, In progress
       !approved? || draft?
     end
