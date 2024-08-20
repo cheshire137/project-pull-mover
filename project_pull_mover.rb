@@ -521,6 +521,11 @@ class PullRequest
     `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --add-label "#{label_name}"`
   end
 
+  def remove_label(label_name:)
+    output_loading_message("Removing label '#{label_name}' from #{to_s}...") unless quiet_mode?
+    `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --remove-label "#{label_name}"`
+  end
+
   def mark_as_draft
     output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
     `#{gh_path} pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
@@ -581,6 +586,19 @@ class PullRequest
   def apply_label_if_necessary
     if should_have_failing_test_label?
       apply_label(label_name: @project.failing_test_label_name)
+      return @project.failing_test_label_name
+    end
+
+    nil
+  end
+
+  def should_remove_failing_test_label?
+    !failing_required_builds? && @project.failing_test_label_name.present?
+  end
+
+  def remove_label_if_necessary
+    if should_remove_failing_test_label?
+      remove_label(label_name: @project.failing_test_label_name)
       return @project.failing_test_label_name
     end
 
@@ -730,19 +748,28 @@ output_success_message("Loaded extra pull request info") unless quiet_mode
 
 total_status_changes_by_new_status = Hash.new(0)
 total_labels_applied_by_name = Hash.new(0)
+total_labels_removed_by_name = Hash.new(0)
 
 project_pulls.each do |pull|
   new_pull_status_option_name = pull.change_status_if_necessary
   if new_pull_status_option_name
     total_status_changes_by_new_status[new_pull_status_option_name] += 1
   end
+
   applied_label_name = pull.apply_label_if_necessary
   if applied_label_name
     total_labels_applied_by_name[applied_label_name] += 1
   end
+
+  removed_label_name = pull.remove_label_if_necessary
+  if removed_label_name
+    total_labels_removed_by_name[removed_label_name] += 1
+  end
 end
 
-any_changes = (total_status_changes_by_new_status.values.sum + total_labels_applied_by_name.values.sum) > 0
+any_changes = (total_status_changes_by_new_status.values.sum +
+  total_labels_applied_by_name.values.sum +
+  total_labels_removed_by_name.values.sum) > 0
 
 if any_changes
   message_pieces = []
@@ -754,9 +781,15 @@ if any_changes
   end
 
   total_labels_applied_by_name.each do |label_name, count|
-    units = count == 1 ? "label" : "labels"
+    units = count == 1 ? "pull request" : "pull requests"
     first_letter = message_pieces.size < 1 ? "A" : "a"
-    message_pieces << "#{first_letter}pplied #{count} #{units}"
+    message_pieces << "#{first_letter}pplied '#{label_name}' to #{count} #{units}"
+  end
+
+  total_labels_removed_by_name.each do |label_name, count|
+    units = count == 1 ? "pull request" : "pull requests"
+    first_letter = message_pieces.size < 1 ? "R" : "r"
+    message_pieces << "#{first_letter}emoved '#{label_name}' from #{count} #{units}"
   end
 
   message = message_pieces.join(", ")
