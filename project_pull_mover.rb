@@ -24,6 +24,8 @@ option_parser = OptionParser.new do |opts|
     "Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field")
   opts.on("-q", "--quiet", "Quiet mode, suppressing all output except errors")
   opts.on("-h PATH", "--gh-path", String, "Path to gh executable")
+  opts.on("-f LABEL", "--failing-test-label", String, "Name of the label to apply to a pull request that has " \
+    "failing required builds")
 end
 option_parser.parse!(into: options)
 
@@ -62,6 +64,10 @@ class Project
 
   def number
     @number ||= @options[:"project-number"]
+  end
+
+  def failing_test_label_name
+    @failing_test_label_name ||= @options[:"failing-test-label"]
   end
 
   def owner
@@ -510,6 +516,11 @@ class PullRequest
     set_project_item_status(@project.conflicting_option_id)
   end
 
+  def apply_label(label_name:)
+    output_loading_message("Applying label '#{label_name}' to #{to_s}...") unless quiet_mode?
+    `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --add-label "#{label_name}"`
+  end
+
   def mark_as_draft
     output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
     `#{gh_path} pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
@@ -561,6 +572,19 @@ class PullRequest
     return false if has_ignored_status?
     return false unless @project.conflicting_option_id # can't
     against_default_branch? && conflicting? && !enqueued?
+  end
+
+  def should_have_failing_test_label?
+    failing_required_builds? && @project.failing_test_label_name.present?
+  end
+
+  def apply_label_if_necessary
+    if should_have_failing_test_label?
+      apply_label(label_name: @project.failing_test_label_name)
+      return @project.failing_test_label_name
+    end
+
+    nil
   end
 
   def change_status_if_necessary
@@ -705,23 +729,39 @@ end
 output_success_message("Loaded extra pull request info") unless quiet_mode
 
 total_status_changes_by_new_status = Hash.new(0)
+total_labels_applied_by_name = Hash.new(0)
+
 project_pulls.each do |pull|
   new_pull_status_option_name = pull.change_status_if_necessary
   if new_pull_status_option_name
     total_status_changes_by_new_status[new_pull_status_option_name] += 1
   end
+  applied_label_name = pull.apply_label_if_necessary
+  if applied_label_name
+    total_labels_applied_by_name[applied_label_name] += 1
+  end
 end
 
-if total_status_changes_by_new_status.values.sum < 1
-  output_info_message("No pull requests needed a different status") unless quiet_mode
-else
+any_changes = (total_status_changes_by_new_status.values.sum + total_labels_applied_by_name.values.sum) > 0
+
+if any_changes
   message_pieces = []
+
   total_status_changes_by_new_status.each do |new_status, count|
     units = count == 1 ? "pull request" : "pull requests"
     first_letter = message_pieces.size < 1 ? "M" : "m"
     message_pieces << "#{first_letter}oved #{count} #{units} to '#{new_status}'"
   end
+
+  total_labels_applied_by_name.each do |label_name, count|
+    units = count == 1 ? "label" : "labels"
+    first_letter = message_pieces.size < 1 ? "A" : "a"
+    message_pieces << "#{first_letter}pplied #{count} #{units}"
+  end
+
   message = message_pieces.join(", ")
   output_info_message(message) unless quiet_mode
   send_desktop_notification(content: message, title: project.title)
+else
+  output_info_message("No pull requests needed a different status or a label change") unless quiet_mode
 end
