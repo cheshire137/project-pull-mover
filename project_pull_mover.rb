@@ -305,7 +305,11 @@ class PullRequest
   end
 
   def has_failing_test_label?
-    @project.failing_test_label_name && @data["labels"].include?(@project.failing_test_label_name)
+    @project.failing_test_label_name && labels.include?(@project.failing_test_label_name)
+  end
+
+  def labels
+    @labels ||= @data["labels"] || []
   end
 
   def repo_name_with_owner
