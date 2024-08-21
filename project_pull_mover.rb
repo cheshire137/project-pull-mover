@@ -763,7 +763,7 @@ project_pulls.each do |pull|
   pull.set_graphql_data(extra_info) if extra_info
 end
 
-output_success_message("Loaded extra pull request info") unless quiet_mode
+output_success_message("Loaded extra pull request info from the API") unless quiet_mode
 
 total_status_changes_by_new_status = Hash.new(0)
 total_labels_applied_by_name = Hash.new(0)
