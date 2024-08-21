@@ -273,10 +273,6 @@ def repo_field_alias_for(owner:, name:)
   "repo#{replace_hyphens(owner)}#{replace_hyphens(name)}"
 end
 
-def label_field_alias_for(name:)
-  "label#{Digest::MD5.hexdigest(name)}"
-end
-
 class Repository
   def initialize(gql_data, failing_test_label_name: nil)
     @gql_data = gql_data
@@ -285,20 +281,6 @@ class Repository
 
   def default_branch
     @default_branch ||= @gql_data["defaultBranchRef"]["name"]
-  end
-
-  def failing_test_label_name
-    return @failing_test_label_name if defined?(@failing_test_label_name)
-    return unless @raw_failing_test_label_name
-
-    field_alias = label_field_alias_for(name: @raw_failing_test_label_name)
-    label_data = @gql_data[field_alias]
-    unless label_data
-      @failing_test_label_name = nil
-      return
-    end
-
-    @failing_test_label_name = label_data["name"]
   end
 end
 
@@ -720,31 +702,18 @@ pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull,
   hash[repo_owner][repo_name] << pull
 end
 
-def label_graphql_for(name:)
-  field_alias = label_field_alias_for(name: name)
-  <<~GRAPHQL
-    #{field_alias}: label(name: "#{name}") { name }
-  GRAPHQL
-end
-
-def repository_graphql_for(repo_owner:, repo_name:, pull_fields: [], label_fields: [])
+def repository_graphql_for(repo_owner:, repo_name:, pull_fields: [])
   field_alias = repo_field_alias_for(owner: repo_owner, name: repo_name)
   <<~GRAPHQL
     #{field_alias}: repository(owner: "#{repo_owner}", name: "#{repo_name}") {
       id
       defaultBranchRef { name }
-      #{label_fields.join("\n")}
       #{pull_fields.join("\n")}
     }
   GRAPHQL
 end
 
 repo_fields = []
-label_fields = []
-
-if failing_test_label_name && failing_test_label_name.strip.size > 0
-  label_fields << label_graphql_for(name: failing_test_label_name)
-end
 
 pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
   total_repos = pulls_by_repo_name.size
@@ -755,8 +724,7 @@ pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
 
   pulls_by_repo_name.each do |repo_name, pulls_in_repo|
     pull_fields = pulls_in_repo.map(&:graphql_field)
-    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name, pull_fields: pull_fields,
-      label_fields: label_fields)
+    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name, pull_fields: pull_fields)
   end
 end
 
