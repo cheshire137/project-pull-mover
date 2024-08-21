@@ -658,7 +658,7 @@ class PullRequest
   private
 
   def failing_test_label_name
-    @repo.failing_test_label_name
+    @project.failing_test_label_name
   end
 
   def last_commit
