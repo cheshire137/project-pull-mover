@@ -304,6 +304,10 @@ class PullRequest
     @number ||= @data["content"]["number"]
   end
 
+  def has_failing_test_label?
+    @project.failing_test_label_name && @data["labels"].include?(@project.failing_test_label_name)
+  end
+
   def repo_name_with_owner
     @repo_name_with_owner ||= @data["content"]["repository"]
   end
@@ -590,12 +594,12 @@ class PullRequest
     against_default_branch? && conflicting? && !enqueued?
   end
 
-  def should_have_failing_test_label?
-    failing_required_builds? && failing_test_label_name && failing_test_label_name.size > 0
+  def should_apply_failing_test_label?
+    failing_required_builds? && failing_test_label_name && !has_failing_test_label?
   end
 
   def apply_label_if_necessary
-    if should_have_failing_test_label?
+    if should_apply_failing_test_label?
       apply_label(label_name: failing_test_label_name)
       return failing_test_label_name
     end
@@ -604,7 +608,7 @@ class PullRequest
   end
 
   def should_remove_failing_test_label?
-    !failing_required_builds? && failing_test_label_name && failing_test_label_name.size > 0
+    !failing_required_builds? && failing_test_label_name && has_failing_test_label?
   end
 
   def remove_label_if_necessary
