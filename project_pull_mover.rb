@@ -170,6 +170,18 @@ class Project
     end
   end
 
+  def failing_test_label_name
+    return @failing_test_label_name if defined?(@failing_test_label_name)
+    result = @options[:"failing-test-label"]
+    if result
+      result = result.strip
+      if result.size < 1
+        result = nil
+      end
+    end
+    @failing_test_label_name = result
+  end
+
   private
 
   def option_name_for(option_id)
@@ -183,16 +195,9 @@ class Project
   end
 end
 
-failing_test_label_name = options[:"failing-test-label"]
-if failing_test_label_name
-  failing_test_label_name = failing_test_label_name.strip
-  if failing_test_label_name.size < 1
-    failing_test_label_name = nil
-  end
-end
-
 project = Project.new(options)
 gh_path = project.gh_path
+failing_test_label_name = project.failing_test_label_name
 
 unless gh_path
   output_error_message("Error: gh executable not found")
