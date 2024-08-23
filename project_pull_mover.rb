@@ -45,6 +45,8 @@ def which(cmd)
   nil
 end
 
+limit = 500
+
 class Project
   def initialize(options)
     @options = options
@@ -256,7 +258,8 @@ unless quiet_mode
   output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
 end
 
-project_items_cmd = "#{gh_path} project item-list #{project.number} --owner #{project.owner} --format json"
+project_items_cmd = "#{gh_path} project item-list #{project.number} --owner #{project.owner} --format json " \
+  "--limit #{limit}"
 json = `#{project_items_cmd}`
 if json.nil? || json == ""
   output_error_message("Error: no JSON results for project items; command: #{project_items_cmd}")
