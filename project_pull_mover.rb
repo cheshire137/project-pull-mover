@@ -263,7 +263,13 @@ if json.nil? || json == ""
   exit 1
 end
 
-project_items = JSON.parse(json)["items"]
+all_project_items = JSON.parse(json)["items"]
+project_items = all_project_items.select { |item| item["content"]["type"] == "PullRequest" }
+
+if project_items.size < 1
+  output_success_message("No pull requests found in project #{project.number} by @#{project.owner}") unless quiet_mode
+  exit 0
+end
 
 def replace_hyphens(str)
   str.split("-").map(&:capitalize).join("")
@@ -696,8 +702,7 @@ class PullRequest
   end
 end
 
-project_pulls = project_items.select { |item| item["content"]["type"] == "PullRequest" }
-  .map { |pull_info| PullRequest.new(pull_info, project: project) }
+project_pulls = project_items.map { |pull_info| PullRequest.new(pull_info, project: project) }
 total_pulls = project_pulls.size
 pull_units = total_pulls == 1 ? "pull request" : "pull requests"
 output_success_message("Found #{total_pulls} #{pull_units} in project") unless quiet_mode
