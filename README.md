@@ -6,6 +6,8 @@ moved.
 
 ![Screenshot of a GitHub project in kanban board layout with several columns. There is a blue arrow from a pull request in the left-most In Progress column pointing into the adjacent Not Against Master column.](./project-screenshot.png)
 
+The script gets the list of pull requests in the specified project, iterates through them, and updates the status field you specify based on the PR's state.
+
 ## How to use
 
 ### Prerequisites
@@ -45,6 +47,7 @@ Usage: ./project_pull_mover.rb [options]
     -g, --ignored IDS                Optional comma-separated list of option IDs of columns like 'Blocked' or 'On hold' for status field
     -q, --quiet                      Quiet mode, suppressing all output except errors
     -h, --gh-path PATH               Path to gh executable
+    -f, --failing-test-label LABEL   Name of the label to apply to a pull request that has failing required builds
 ```
 
 Run the script with:
