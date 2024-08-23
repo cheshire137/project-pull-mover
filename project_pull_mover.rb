@@ -29,6 +29,8 @@ option_parser = OptionParser.new do |opts|
     "failing required builds")
   opts.on("-u AUTHOR", "--author", String, "Specify a username so that only PRs in the project authored by that " \
     "user are changed")
+  opts.on("-m", "--mark-draft", "Also mark pull requests as a draft when setting them to In Progress, " \
+    "Not Against Main, or Conflicting status.")
 end
 option_parser.parse!(into: options)
 
@@ -85,6 +87,10 @@ class Project
 
   def quiet_mode?
     @options[:quiet]
+  end
+
+  def allow_marking_drafts?
+    @options[:"mark-draft"]
   end
 
   def owner_graphql_field
@@ -613,7 +619,7 @@ class PullRequest
   end
 
   def can_mark_as_draft?
-    !draft? && !enqueued?
+    !draft? && !enqueued? && @project.allow_marking_drafts?
   end
 
   def should_have_in_progress_status?
