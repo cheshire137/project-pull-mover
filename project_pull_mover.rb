@@ -27,6 +27,8 @@ option_parser = OptionParser.new do |opts|
   opts.on("-h PATH", "--gh-path", String, "Path to gh executable")
   opts.on("-f LABEL", "--failing-test-label", String, "Name of the label to apply to a pull request that has " \
     "failing required builds")
+  opts.on("-u AUTHOR", "--author", String, "Specify a username so that only PRs in the project authored by that " \
+    "user are changed")
 end
 option_parser.parse!(into: options)
 
@@ -75,6 +77,10 @@ class Project
 
   def owner_type
     @owner_type ||= @options[:"project-owner-type"]
+  end
+
+  def author
+    @author ||= @options[:"author"]
   end
 
   def quiet_mode?
@@ -281,6 +287,44 @@ end
 unless quiet_mode
   pull_units = project_items.size == 1 ? "pull request" : "pull requests"
   output_success_message("Found #{project_items.size} #{pull_units} in project")
+end
+
+if project.author
+  output_info_message("Looking up open pull requests by @#{project.author} in project...") unless quiet_mode
+
+  pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{project.author}\" --project " \
+    "\"#{project.owner}/#{project.number}\" --json \"number,repository\" --limit #{limit} --state open"
+  json = `#{pulls_by_author_in_project_cmd}`
+  if json.nil? || json == ""
+    output_error_message("Error: no JSON results for pull requests by author in project; " \
+      "command: #{pulls_by_author_in_project_cmd}")
+    exit 1
+  end
+
+  pulls_by_author_in_project = JSON.parse(json)
+  pull_numbers_by_repo_nwo = pulls_by_author_in_project.each_with_object({}) do |data, hash|
+    repo_nwo = data["repository"]["nameWithOwner"]
+    hash[repo_nwo] ||= []
+    hash[repo_nwo] << data["number"]
+  end
+
+  total_project_items_before = project_items.size
+  project_items = project_items.select do |item|
+    item_repo_nwo = item["content"]["repository"]
+    item_pr_number = item["content"]["number"]
+    pull_numbers_by_repo_nwo.key?(item_repo_nwo) && pull_numbers_by_repo_nwo[item_repo_nwo].include?(item_pr_number)
+  end
+  total_project_items_after = project_items.size
+
+  unless quiet_mode
+    if total_project_items_before == total_project_items_after
+      output_info_message("All PRs in project were authored by @#{project.author}")
+    else
+      after_units = total_project_items_after == 1 ? "pull request" : "pull requests"
+      output_info_message("Filtered PRs in project down to #{total_project_items_after} #{after_units} authored " \
+        "by @#{project.author}")
+    end
+  end
 end
 
 def replace_hyphens(str)
