@@ -264,11 +264,20 @@ if json.nil? || json == ""
 end
 
 all_project_items = JSON.parse(json)["items"]
-project_items = all_project_items.select { |item| item["content"]["type"] == "PullRequest" }
+unless quiet_mode
+  units = all_project_items.size == 1 ? "item" : "items"
+  output_info_message("Found #{all_project_items.size} #{units} in project")
+end
 
+project_items = all_project_items.select { |item| item["content"]["type"] == "PullRequest" }
 if project_items.size < 1
   output_success_message("No pull requests found in project #{project.number} by @#{project.owner}") unless quiet_mode
   exit 0
+end
+
+unless quiet_mode
+  pull_units = project_items.size == 1 ? "pull request" : "pull requests"
+  output_success_message("Found #{project_items.size} #{pull_units} in project")
 end
 
 def replace_hyphens(str)
@@ -703,10 +712,6 @@ class PullRequest
 end
 
 project_pulls = project_items.map { |pull_info| PullRequest.new(pull_info, project: project) }
-total_pulls = project_pulls.size
-pull_units = total_pulls == 1 ? "pull request" : "pull requests"
-output_success_message("Found #{total_pulls} #{pull_units} in project") unless quiet_mode
-
 pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
   repo_owner = pull.repo_owner
   repo_name = pull.repo_name
