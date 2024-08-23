@@ -146,7 +146,7 @@ class Project
     result << needs_review_option_name if needs_review_option_id
     result << ready_to_deploy_option_name if ready_to_deploy_option_id
     result << conflicting_option_name if conflicting_option_id
-    result.concat(ignored_option_names)
+    result
   end
 
   def ignored_option_names
@@ -759,6 +759,7 @@ end
 
 unless quiet_mode
   output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
+  output_info_message("Ignored '#{project.status_field}' options: #{project.ignored_option_names.join(', ')}")
 end
 
 project_pulls.each do |pull|
