@@ -639,7 +639,15 @@ class PullRequest
     return false if daisy_chained? # don't ask for review when base branch will change
     return false if enqueued? # don't ask for review if we're already in the merge queue
 
-    !approved? && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status?)
+    already_approved_check = if @project.ready_to_deploy_option_id
+      # Only care about whether the PR has received an approval if there's another column it could move to
+      # after 'Needs review'.
+      !approved?
+    else
+      true
+    end
+
+    already_approved_check && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status?)
   end
 
   def should_have_not_against_main_status?
