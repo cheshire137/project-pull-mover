@@ -32,6 +32,9 @@ option_parser = OptionParser.new do |opts|
     "user are changed")
   opts.on("-m", "--mark-draft", "Also mark pull requests as a draft when setting them to In Progress, " \
     "Not Against Main, or Conflicting status.")
+  opts.on("-b BUILDS", "--builds-to-rerun", Array, "Case-insensitive comma-separated list of build names or " \
+    "partial build names that should be re-run when they are failing and the pull request is moved them back " \
+    "to In Progress status")
 end
 option_parser.parse!(into: options)
 
@@ -84,6 +87,10 @@ class Project
 
   def author
     @author ||= @options[:"author"]
+  end
+
+  def build_names_for_rerun
+    @build_names_for_rerun ||= (@options[:"builds-to-rerun"] || []).map { |name| name.strip.downcase }
   end
 
   def quiet_mode?
@@ -615,8 +622,22 @@ class PullRequest
   end
 
   def rerun_failed_run(run_id:)
-    output_loading_message("Rerunning failed run #{run_id} for #{to_s}...") unless quiet_mode?
+    unless quiet_mode?
+      build_name = build_name_for_run_id(run_id)
+      output_loading_message("Rerunning failed run #{build_name || run_id} for #{to_s}...")
+    end
     `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_name_with_owner}"`
+  end
+
+  def rerun_failing_required_builds
+    return if build_names_for_rerun.size < 1
+
+    build_names_for_rerun.each do |build_name|
+      run_id = run_id_for_build_name(build_name)
+      if run_id
+        rerun_failed_run(run_id: run_id)
+      end
+    end
   end
 
   def mark_as_draft
@@ -737,13 +758,18 @@ class PullRequest
 
     if should_have_in_progress_status?
       no_op = has_in_progress_status?
-      set_in_progress_status unless no_op
+      unless no_op
+        set_in_progress_status
+        rerun_failing_required_builds
+      end
       mark_as_draft if can_mark_as_draft?
       return no_op ? nil : @project.in_progress_option_name
     end
 
     nil
   end
+
+  private
 
   def failed_required_run_ids_by_name
     return @failed_required_run_ids_by_name if @failed_required_run_ids_by_name
@@ -761,13 +787,33 @@ class PullRequest
     @failed_required_run_ids_by_name = result
   end
 
-  private
+  def build_name_for_run_id(target_run_id)
+    failed_required_run_ids_by_name.each do |name, run_id|
+      return name if run_id == target_run_id
+    end
+    nil
+  end
+
+  def run_id_for_build_name(build_name)
+    failed_run_ids_by_name = failed_required_run_ids_by_name
+
+    if failed_run_ids_by_name.key?(build_name) # exact match
+      return failed_run_ids_by_name[build_name]
+    end
+
+    failed_run_ids_by_name.each do |name, run_id|
+      if name.include?(build_name) # partial match
+        return run_id
+      end
+    end
+
+    nil
+  end
 
   def failed_required_checks
     return @failed_required_checks if @failed_required_checks
     required_checks = load_required_checks
-    failure_states = Set.new(["CANCELLED", "FAILURE"])
-    @failed_required_checks = required_checks.select { |check| failure_states.include?(check["state"]) }
+    @failed_required_checks = required_checks.select { |check| "FAILURE" == check["state"] }
   end
 
   def load_required_checks
@@ -777,6 +823,10 @@ class PullRequest
 
   def failing_test_label_name
     @project.failing_test_label_name
+  end
+
+  def build_names_for_rerun
+    @project.build_names_for_rerun
   end
 
   def last_commit
