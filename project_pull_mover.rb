@@ -613,6 +613,11 @@ class PullRequest
     `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --remove-label "#{label_name}"`
   end
 
+  def rerun_failed_run(run_id:)
+    output_loading_message("Rerunning failed run #{run_id} for #{to_s}...") unless quiet_mode?
+    `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_name_with_owner}"`
+  end
+
   def mark_as_draft
     output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
     `#{gh_path} pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
