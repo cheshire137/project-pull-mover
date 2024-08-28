@@ -4,6 +4,7 @@
 require "digest"
 require "json"
 require "optparse"
+require "set"
 
 options = {}
 option_parser = OptionParser.new do |opts|
@@ -744,7 +745,35 @@ class PullRequest
     nil
   end
 
+  def failed_required_run_ids_by_name
+    return @failed_required_run_ids_by_name if @failed_required_run_ids_by_name
+    result = {}
+    regex = %r{/actions/runs/(\d+)/job/}
+    failed_required_checks.each do |check|
+      url = check["link"]
+      matches = regex.match(url)
+      if matches
+        run_id = matches[1]
+        name = check["name"].strip.downcase
+        result[name] = run_id
+      end
+    end
+    @failed_required_run_ids_by_name = result
+  end
+
   private
+
+  def failed_required_checks
+    return @failed_required_checks if @failed_required_checks
+    required_checks = load_required_checks
+    failure_states = Set.new(["CANCELLED", "FAILURE"])
+    @failed_required_checks = required_checks.select { |check| failure_states.include?(check["state"]) }
+  end
+
+  def load_required_checks
+    json_str = `#{gh_path} pr checks #{number} --repo "#{repo_name_with_owner}" --required --json "link,state,name"`
+    json_str.nil? || json_str.size < 1 ? [] : JSON.parse(json_str)
+  end
 
   def failing_test_label_name
     @project.failing_test_label_name
