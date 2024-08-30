@@ -653,9 +653,15 @@ class PullRequest
     return false if has_ignored_status?
     return false unless @project.in_progress_option_id # can't
     return false if enqueued? # don't say it's in progress if we're already in the merge queue
-    return false if conflicting? # don't put PR with merge conflicts into 'In progress'
-    return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
-    return false if daisy_chained? # if not based on 'main', should be in 'Not against main'
+
+    # If we have a 'Conflicting' column...
+    if @project.conflicting_option_id
+      return false if conflicting? # don't put PR with merge conflicts into 'In progress'
+      return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
+    end
+
+    # If not based on 'main', should be in 'Not against main' if we have such a column
+    return false if daisy_chained? && @project.not_against_main_option_id
 
     if has_needs_review_status? || has_ready_to_deploy_status?
       failing_required_builds? || draft?
