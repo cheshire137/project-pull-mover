@@ -676,7 +676,9 @@ class PullRequest
     return false if conflicting? # don't ask for review when there are conflicts to resolve
     return false if draft? # don't ask for review if it's still a draft
     return false if daisy_chained? # don't ask for review when base branch will change
-    return false if enqueued? # don't ask for review if we're already in the merge queue
+
+    # Don't ask for review if we're already in the merge queue and have a 'Ready to deploy' column:
+    return false if enqueued? && @project.ready_to_deploy_option_id
 
     already_approved_check = if @project.ready_to_deploy_option_id
       # Only care about whether the PR has received an approval if there's another column it could move to
