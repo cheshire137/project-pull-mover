@@ -688,7 +688,8 @@ class PullRequest
       true
     end
 
-    already_approved_check && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status?)
+    already_approved_check && (has_in_progress_status? || has_conflicting_status? || has_ready_to_deploy_status? ||
+      has_not_against_main_status?)
   end
 
   def should_have_not_against_main_status?
