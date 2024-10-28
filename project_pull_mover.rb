@@ -907,8 +907,20 @@ graphql_query = <<~GRAPHQL
     #{repo_fields.join("\n")}
   }
 GRAPHQL
-json = `#{gh_path} api graphql -f query='#{graphql_query}'`
-graphql_data = JSON.parse(json)["data"]
+json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
+graphql_resp = JSON.parse(json_str)
+graphql_data = graphql_resp["data"]
+
+unless graphql_data
+  graphql_error_msg = if graphql_resp["errors"]
+    graphql_resp["errors"].map { |err| err["message"] }.join("\n")
+  else
+    graphql_resp.inspect
+  end
+  output_error_message("Error: no data returned from the GraphQL API")
+  output_error_message(graphql_error_msg)
+  exit 1
+end
 
 if graphql_data["user"]
   project.set_graphql_data(graphql_data["user"])
