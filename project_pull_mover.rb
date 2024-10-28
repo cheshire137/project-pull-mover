@@ -345,10 +345,6 @@ def replace_hyphens(str)
   str.split("-").map(&:capitalize).join("")
 end
 
-def repo_field_alias_for(owner:, name:)
-  "repo#{replace_hyphens(owner)}#{replace_hyphens(name)}"
-end
-
 class Repository
   def initialize(gql_data, failing_test_label_name: nil)
     @gql_data = gql_data
@@ -368,12 +364,9 @@ class PullRequest
     @project = project
   end
 
-  def set_graphql_data(value)
-    @gql_data = value
-  end
-
-  def set_repo(value)
-    @repo = value
+  def set_graphql_data(repo_and_pull_data)
+    @repo ||= Repository.new(repo_and_pull_data, failing_test_label_name: @project.failing_test_label_name)
+    @gql_data = repo_and_pull_data["pullRequest"] || {}
   end
 
   def number
@@ -408,57 +401,57 @@ class PullRequest
     "#{repo_name_with_owner}##{number}"
   end
 
-  def graphql_repo_field_alias
-    @graphql_repo_field_alias ||= repo_field_alias_for(owner: repo_owner, name: repo_name)
-  end
-
   def graphql_field_alias
     @graphql_field_alias ||= "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}#{number}"
   end
 
   def graphql_field
     <<~GRAPHQL
-      #{graphql_field_alias}: pullRequest(number: #{number}) {
-        isDraft
-        isInMergeQueue
-        reviewDecision
-        mergeable
-        baseRefName
-        commits(last: 1) {
-          nodes {
-            commit {
-              checkSuites(first: 100) {
-                nodes {
-                  checkRuns(
-                    first: 100
-                    filterBy: {checkType: LATEST, conclusions: [ACTION_REQUIRED, TIMED_OUT, CANCELLED, FAILURE, STARTUP_FAILURE]}
-                  ) {
-                    nodes {
-                      name
-                      isRequired(pullRequestNumber: #{number})
+      #{graphql_field_alias}: repository(owner: "#{repo_owner}", name: "#{repo_name}") {
+        id
+        defaultBranchRef { name }
+        pullRequest(number: #{number}) {
+          isDraft
+          isInMergeQueue
+          reviewDecision
+          mergeable
+          baseRefName
+          commits(last: 1) {
+            nodes {
+              commit {
+                checkSuites(first: 100) {
+                  nodes {
+                    checkRuns(
+                      first: 100
+                      filterBy: {checkType: LATEST, conclusions: [ACTION_REQUIRED, TIMED_OUT, CANCELLED, FAILURE, STARTUP_FAILURE]}
+                    ) {
+                      nodes {
+                        name
+                        isRequired(pullRequestNumber: #{number})
+                      }
                     }
                   }
                 }
-              }
-              status {
-                contexts {
-                  context
-                  state
-                  isRequired(pullRequestNumber: #{number})
+                status {
+                  contexts {
+                    context
+                    state
+                    isRequired(pullRequestNumber: #{number})
+                  }
                 }
               }
             }
           }
-        }
-        projectItems(first: 100) {
-          nodes {
-            id
-            project { id number }
-            fieldValueByName(name: "#{@project.status_field}") {
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                field { ... on ProjectV2SingleSelectField { id } }
-                optionId
-                name
+          projectItems(first: 100) {
+            nodes {
+              id
+              project { id number }
+              fieldValueByName(name: "#{@project.status_field}") {
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                  field { ... on ProjectV2SingleSelectField { id } }
+                  optionId
+                  name
+                }
               }
             }
           }
@@ -866,60 +859,48 @@ class PullRequest
 end
 
 project_pulls = project_items.map { |pull_info| PullRequest.new(pull_info, project: project) }
-pulls_by_repo_owner_and_repo_name = project_pulls.each_with_object({}) do |pull, hash|
-  repo_owner = pull.repo_owner
-  repo_name = pull.repo_name
-  hash[repo_owner] ||= {}
-  hash[repo_owner][repo_name] ||= []
-  hash[repo_owner][repo_name] << pull
-end
 
-def repository_graphql_for(repo_owner:, repo_name:, pull_fields: [])
-  field_alias = repo_field_alias_for(owner: repo_owner, name: repo_name)
-  <<~GRAPHQL
-    #{field_alias}: repository(owner: "#{repo_owner}", name: "#{repo_name}") {
-      id
-      defaultBranchRef { name }
-      #{pull_fields.join("\n")}
+output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode
+graphql_queries = []
+graphql_data = {}
+pull_fields = project_pulls.map(&:graphql_field)
+pull_fields_per_query = 5
+
+graphql_queries << <<~GRAPHQL
+  query {
+    #{project.owner_graphql_field}
+    #{pull_fields.take(pull_fields_per_query).join("\n")}
+  }
+GRAPHQL
+
+remaining_pull_fields = pull_fields.drop(pull_fields_per_query)
+remaining_pull_fields.each_slice(pull_fields_per_query) do |pull_fields_in_batch|
+  graphql_queries << <<~GRAPHQL
+    query {
+      #{pull_fields_in_batch.join("\n")}
     }
   GRAPHQL
 end
 
-repo_fields = []
+output_info_message("Will make #{graphql_queries.size} API request(s) to get pull request data") unless quiet_mode
 
-pulls_by_repo_owner_and_repo_name.each do |repo_owner, pulls_by_repo_name|
-  total_repos = pulls_by_repo_name.size
-  repo_units = total_repos == 1 ? "repository" : "repositories"
-  unless quiet_mode
-    output_info_message("Found pull requests in #{total_repos} unique #{repo_units} by @#{repo_owner}")
-  end
+graphql_queries.each_with_index do |graphql_query, query_index|
+  output_loading_message("Making API request #{query_index + 1} of #{graphql_queries.size}...") unless quiet_mode
+  json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
+  graphql_resp = JSON.parse(json_str)
 
-  pulls_by_repo_name.each do |repo_name, pulls_in_repo|
-    pull_fields = pulls_in_repo.map(&:graphql_field)
-    repo_fields << repository_graphql_for(repo_owner: repo_owner, repo_name: repo_name, pull_fields: pull_fields)
-  end
-end
-
-output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode
-graphql_query = <<~GRAPHQL
-  query {
-    #{project.owner_graphql_field}
-    #{repo_fields.join("\n")}
-  }
-GRAPHQL
-json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
-graphql_resp = JSON.parse(json_str)
-graphql_data = graphql_resp["data"]
-
-unless graphql_data
-  graphql_error_msg = if graphql_resp["errors"]
-    graphql_resp["errors"].map { |err| err["message"] }.join("\n")
+  if graphql_resp["data"]
+    graphql_data.merge!(graphql_resp["data"])
   else
-    graphql_resp.inspect
+    graphql_error_msg = if graphql_resp["errors"]
+      graphql_resp["errors"].map { |err| err["message"] }.join("\n")
+    else
+      graphql_resp.inspect
+    end
+    output_error_message("Error: no data returned from the GraphQL API")
+    output_error_message(graphql_error_msg)
+    exit 1
   end
-  output_error_message("Error: no data returned from the GraphQL API")
-  output_error_message(graphql_error_msg)
-  exit 1
 end
 
 if graphql_data["user"]
@@ -934,13 +915,7 @@ unless quiet_mode
 end
 
 project_pulls.each do |pull|
-  repo_gql_data = graphql_data[pull.graphql_repo_field_alias]
-  next unless repo_gql_data
-
-  repo = Repository.new(repo_gql_data, failing_test_label_name: failing_test_label_name)
-  pull.set_repo(repo)
-
-  extra_info = repo_gql_data[pull.graphql_field_alias]
+  extra_info = graphql_data[pull.graphql_field_alias]
   pull.set_graphql_data(extra_info) if extra_info
 end
 
