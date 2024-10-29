@@ -53,7 +53,8 @@ def which(cmd)
   nil
 end
 
-limit = 500
+proj_items_limit = 500
+pull_fields_per_query = 10
 
 class Project
   def initialize(options)
@@ -279,7 +280,7 @@ unless quiet_mode
 end
 
 project_items_cmd = "#{gh_path} project item-list #{project.number} --owner #{project.owner} --format json " \
-  "--limit #{limit}"
+  "--limit #{proj_items_limit}"
 json = `#{project_items_cmd}`
 if json.nil? || json == ""
   output_error_message("Error: no JSON results for project items; command: #{project_items_cmd}")
@@ -307,7 +308,7 @@ if project.author
   output_info_message("Looking up open pull requests by @#{project.author} in project...") unless quiet_mode
 
   pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{project.author}\" --project " \
-    "\"#{project.owner}/#{project.number}\" --json \"number,repository\" --limit #{limit} --state open"
+    "\"#{project.owner}/#{project.number}\" --json \"number,repository\" --limit #{proj_items_limit} --state open"
   json = `#{pulls_by_author_in_project_cmd}`
   if json.nil? || json == ""
     output_error_message("Error: no JSON results for pull requests by author in project; " \
@@ -864,7 +865,6 @@ output_loading_message("Looking up more info about each pull request in project.
 graphql_queries = []
 graphql_data = {}
 pull_fields = project_pulls.map(&:graphql_field)
-pull_fields_per_query = 5
 
 graphql_queries << <<~GRAPHQL
   query {
