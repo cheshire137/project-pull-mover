@@ -54,7 +54,7 @@ def which(cmd)
 end
 
 proj_items_limit = 500
-pull_fields_per_query = 10
+pull_fields_per_query = 7
 
 class Project
   def initialize(options)
