@@ -52,12 +52,6 @@ pull_fields_per_query = 7
 project = Project.new(options)
 gh_path = project.gh_path
 
-unless gh_path
-  output_error_message("Error: gh executable not found")
-  puts option_parser
-  exit 1
-end
-
 unless project.number && project.owner && project.status_field
   output_error_message("Error: missing required options")
   puts option_parser
