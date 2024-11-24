@@ -31,10 +31,21 @@ query {
 You'll use the option IDs from the GraphQL query to tell project_pull_mover where to move your pull requests in your
 project.
 
+### Installation
+
+Download the .gem file from the [latest release](https://github.com/cheshire137/project-pull-mover/releases/latest).
+Install it via:
+
+```sh
+gem install project_pull_mover.gem
+```
+
+There should now be a `project_pull_mover` executable in your path.
+
 ### Options
 
 ```sh
-Usage: ./project_pull_mover.rb [options]
+Usage: project_pull_mover [options]
     -p, --project-number NUM         Project number (required), e.g., 123 for https://github.com/orgs/someorg/projects/123
     -o, --project-owner OWNER        Project owner login (required), e.g., someorg for https://github.com/orgs/someorg/projects/123
     -t, --project-owner-type TYPE    Project owner type (required), either 'user' or 'organization'
@@ -55,7 +66,7 @@ Usage: ./project_pull_mover.rb [options]
 Run the script with:
 
 ```sh
-./project_pull_mover.rb
+project_pull_mover
 ```
 
 Follow instructions about required options and run suggested `gh auth` commands to get the right permissions, e.g.,
@@ -68,7 +79,7 @@ To request it, run:  gh auth refresh -s project
 Example use:
 
 ```sh
-./project_pull_mover.rb -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status"
+project_pull_mover -p 123 -o myOrg -t organization -i 123abc -a zyx987 -n ab123cd -r a1b2c3 -c z9y8x7 -g "idkfa1,iddqd2" -s "Status"
 ```
 
 ### Example output
@@ -123,6 +134,18 @@ To get the token to use, try running `gh auth refresh -s project` first and go t
 flow. Once complete, you can run `gh auth token` to get your GitHub API token.
 
 ## How to develop
+
+Install dependencies:
+
+```sh
+bundle install
+```
+
+Check types:
+
+```sh
+srb tc
+```
 
 ### Creating a tag
 

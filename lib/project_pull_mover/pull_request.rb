@@ -1,13 +1,22 @@
+# typed: true
 # frozen_string_literal: true
 # encoding: utf-8
 
+require_relative "gh_cli"
+require_relative "utils"
+
 module ProjectPullMover
   class PullRequest
-    def initialize(data, project:)
+    extend T::Sig
+
+    sig { params(data: T::Hash[T.untyped, T.untyped], options: Options, project: Project, gh_cli: GhCli).void }
+    def initialize(data, options:, project:, gh_cli:)
       @data = data
+      @options = options
       @gql_data = {}
       @repo = nil
       @project = project
+      @gh_cli = gh_cli
     end
 
     def set_graphql_data(repo_and_pull_data)
@@ -48,7 +57,7 @@ module ProjectPullMover
     end
 
     def graphql_field_alias
-      @graphql_field_alias ||= "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}#{number}"
+      @graphql_field_alias ||= "pull#{Utils.replace_hyphens(repo_owner)}#{Utils.replace_hyphens(repo_name)}#{number}"
     end
 
     def graphql_field
@@ -92,7 +101,7 @@ module ProjectPullMover
               nodes {
                 id
                 project { id number }
-                fieldValueByName(name: "#{@project.status_field}") {
+                fieldValueByName(name: "#{@options.status_field}") {
                   ... on ProjectV2ItemFieldSingleSelectValue {
                     field { ... on ProjectV2SingleSelectField { id } }
                     optionId
@@ -202,70 +211,112 @@ module ProjectPullMover
     end
 
     def has_in_progress_status?
-      current_status_option_id == @project.in_progress_option_id
+      current_status_option_id == @options.in_progress_option_id
     end
 
     def has_not_against_main_status?
-      current_status_option_id == @project.not_against_main_option_id
+      current_status_option_id == @options.not_against_main_option_id
     end
 
     def has_needs_review_status?
-      current_status_option_id == @project.needs_review_option_id
+      current_status_option_id == @options.needs_review_option_id
     end
 
     def has_ready_to_deploy_status?
-      current_status_option_id == @project.ready_to_deploy_option_id
+      current_status_option_id == @options.ready_to_deploy_option_id
     end
 
     def has_conflicting_status?
-      current_status_option_id == @project.conflicting_option_id
+      current_status_option_id == @options.conflicting_option_id
     end
 
     def has_ignored_status?
-      @project.ignored_option_ids.include?(current_status_option_id)
+      @options.ignored_option_ids.include?(current_status_option_id)
     end
 
     def set_in_progress_status
-      output_status_change_loading_message(@project.in_progress_option_name) unless quiet_mode?
-      set_project_item_status(@project.in_progress_option_id)
+      option_id = @options.in_progress_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.in_progress_option_name,
+      )
     end
 
     def set_needs_review_status
-      output_status_change_loading_message(@project.needs_review_option_name) unless quiet_mode?
-      set_project_item_status(@project.needs_review_option_id)
+      option_id = @options.needs_review_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.needs_review_option_name,
+      )
     end
 
     def set_not_against_main_status
-      output_status_change_loading_message(@project.not_against_main_option_name) unless quiet_mode?
-      set_project_item_status(@project.not_against_main_option_id)
+      option_id = @options.not_against_main_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.not_against_main_option_name,
+      )
     end
 
     def set_ready_to_deploy_status
-      output_status_change_loading_message(@project.ready_to_deploy_option_name) unless quiet_mode?
-      set_project_item_status(@project.ready_to_deploy_option_id)
+      option_id = @options.ready_to_deploy_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.ready_to_deploy_option_name,
+      )
     end
 
     def set_conflicting_status
-      output_status_change_loading_message(@project.conflicting_option_name) unless quiet_mode?
-      set_project_item_status(@project.conflicting_option_id)
+      option_id = @options.conflicting_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.conflicting_option_name,
+      )
     end
 
     def apply_label(label_name:)
-      output_loading_message("Applying label '#{label_name}' to #{to_s}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --add-label "#{label_name}"`
+      @gh_cli.apply_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
+        pull_name: to_s)
     end
 
     def remove_label(label_name:)
-      output_loading_message("Removing label '#{label_name}' from #{to_s}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --remove-label "#{label_name}"`
+      @gh_cli.remove_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
+        pull_name: to_s)
     end
 
     def rerun_failed_run(run_id:)
-      unless quiet_mode?
-        build_name = build_name_for_run_id(run_id)
-        output_loading_message("Rerunning failed run #{build_name || run_id} for #{to_s}...")
-      end
-      `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_name_with_owner}"`
+      @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name_for_run_id(run_id),
+        repo_nwo: repo_name_with_owner)
     end
 
     def rerun_failing_required_builds
@@ -280,27 +331,26 @@ module ProjectPullMover
     end
 
     def mark_as_draft
-      output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
-      `#{gh_path} pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
+      @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner)
     end
 
     def can_mark_as_draft?
-      !draft? && !enqueued? && @project.allow_marking_drafts?
+      !draft? && !enqueued? && @options.allow_marking_drafts?
     end
 
     def should_have_in_progress_status?
       return false if has_ignored_status?
-      return false unless @project.in_progress_option_id # can't
+      return false unless @options.in_progress_option_id # can't
       return false if enqueued? # don't say it's in progress if we're already in the merge queue
 
       # If we have a 'Conflicting' column...
-      if @project.conflicting_option_id
+      if @options.conflicting_option_id
         return false if conflicting? # don't put PR with merge conflicts into 'In progress'
         return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
       end
 
       # If not based on 'main', should be in 'Not against main' if we have such a column
-      return false if daisy_chained? && @project.not_against_main_option_id
+      return false if daisy_chained? && @options.not_against_main_option_id
 
       if has_needs_review_status? || has_ready_to_deploy_status?
         failing_required_builds? || draft?
@@ -311,15 +361,15 @@ module ProjectPullMover
 
     def should_have_needs_review_status?
       return false if has_ignored_status?
-      return false unless @project.needs_review_option_id # can't
+      return false unless @options.needs_review_option_id # can't
       return false if conflicting? # don't ask for review when there are conflicts to resolve
       return false if draft? # don't ask for review if it's still a draft
       return false if daisy_chained? # don't ask for review when base branch will change
 
       # Don't ask for review if we're already in the merge queue and have a 'Ready to deploy' column:
-      return false if enqueued? && @project.ready_to_deploy_option_id
+      return false if enqueued? && @options.ready_to_deploy_option_id
 
-      already_approved_check = if @project.ready_to_deploy_option_id
+      already_approved_check = if @options.ready_to_deploy_option_id
         # Only care about whether the PR has received an approval if there's another column it could move to
         # after 'Needs review'.
         !approved?
@@ -333,19 +383,19 @@ module ProjectPullMover
 
     def should_have_not_against_main_status?
       return false if has_ignored_status?
-      return false unless @project.not_against_main_option_id # can't
+      return false unless @options.not_against_main_option_id # can't
       daisy_chained?
     end
 
     def should_have_ready_to_deploy_status?
       return false if has_ignored_status?
-      return false unless @project.ready_to_deploy_option_id # can't
+      return false unless @options.ready_to_deploy_option_id # can't
       !draft? && enqueued?
     end
 
     def should_have_conflicting_status?
       return false if has_ignored_status?
-      return false unless @project.conflicting_option_id # can't
+      return false unless @options.conflicting_option_id # can't
       against_default_branch? && conflicting? && !enqueued?
     end
 
@@ -465,7 +515,10 @@ module ProjectPullMover
     end
 
     def load_required_checks
-      json_str = `#{gh_path} pr checks #{number} --repo "#{repo_name_with_owner}" --required --json "link,state,name"`
+      json_str = T.let(
+        `#{gh_path} pr checks #{number} --repo "#{repo_name_with_owner}" --required --json "link,state,name"`,
+        T.nilable(String)
+      )
       json_str.nil? || json_str.size < 1 ? [] : JSON.parse(json_str)
     end
 
@@ -474,7 +527,7 @@ module ProjectPullMover
     end
 
     def build_names_for_rerun
-      @project.build_names_for_rerun
+      @options.build_names_for_rerun
     end
 
     def last_commit
@@ -485,22 +538,14 @@ module ProjectPullMover
       end
     end
 
-    def set_project_item_status(option_id)
-      return false unless option_id
-      `#{gh_path} project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
-    end
-
-    def output_status_change_loading_message(target_column_name)
-      output_loading_message("Moving #{to_s} out of '#{current_status_option_name}' column to " \
-        "'#{target_column_name}'...") unless quiet_mode?
-    end
-
+    sig { returns(T::Boolean) }
     def quiet_mode?
-      @project.quiet_mode?
+      @options.quiet_mode?
     end
 
+    sig { returns(String) }
     def gh_path
-      @project.gh_path
+      @options.gh_path
     end
   end
 end
