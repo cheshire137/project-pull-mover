@@ -1,8 +1,6 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
-require "digest"
-require "set"
 require_relative "../lib/project_pull_mover"
 
 logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
