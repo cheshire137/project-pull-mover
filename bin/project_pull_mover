@@ -1,19 +1,13 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
-#
-# This script is designed to be used with GitHub projects that have a single-select field for status tracking.
-# It will move pull requests between columns based on the status of the pull request's required checks, whether
-# the pull request has conflicting changes, whether the pull request is in the merge queue, and other factors.
-# It will also update the 'draft' state of a pull request and apply or remove a label to indicate test failures.
 
 require "digest"
 require "json"
 require "optparse"
 require "set"
-require_relative "utils"
-require_relative "project"
-require_relative "repository"
-require_relative "pull_request"
+require_relative "../lib/project_pull_mover"
+
+include ProjectPullMover::Utils
 
 options = {}
 option_parser = OptionParser.new do |opts|
@@ -49,7 +43,7 @@ option_parser.parse!(into: options)
 
 proj_items_limit = 500
 pull_fields_per_query = 7
-project = Project.new(options)
+project = ProjectPullMover::Project.new(options)
 gh_path = project.gh_path
 
 unless project.number && project.owner && project.status_field
@@ -144,7 +138,7 @@ if project.author
   end
 end
 
-project_pulls = project_items.map { |pull_info| PullRequest.new(pull_info, project: project) }
+project_pulls = project_items.map { |pull_info| ProjectPullMover::PullRequest.new(pull_info, project: project) }
 
 output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode
 graphql_queries = []
