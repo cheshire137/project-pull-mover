@@ -124,6 +124,17 @@ flow. Once complete, you can run `gh auth token` to get your GitHub API token.
 
 ## How to develop
 
+### Creating a tag
+
+Update `VERSION` in [version.rb](./lib/project_pull_mover/version.rb).
+
+```sh
+git tag v0.0.x main # use the same version as in `VERSION`
+git push origin tag v0.0.x
+```
+
+This will trigger a workflow that builds the gem and creates a new release.
+
 ### Building the gem
 
 ```sh
