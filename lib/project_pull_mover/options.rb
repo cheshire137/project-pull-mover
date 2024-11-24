@@ -9,8 +9,6 @@ module ProjectPullMover
   class Options
     extend T::Sig
 
-    include Utils
-
     sig { returns Integer }
     attr_reader :proj_items_limit
 
@@ -62,7 +60,7 @@ module ProjectPullMover
 
     sig { returns String }
     def gh_path
-      @options[:"gh-path"] || which("gh") || "gh"
+      @options[:"gh-path"] || Utils.which("gh") || "gh"
     end
 
     sig { returns T.nilable(String) }

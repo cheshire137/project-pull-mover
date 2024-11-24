@@ -3,13 +3,11 @@
 # encoding: utf-8
 
 module ProjectPullMover
-  module Utils
+  class Utils
     extend T::Sig
 
-    include Kernel
-
     sig { params(cmd: String).returns(T.nilable(String)) }
-    def which(cmd)
+    def self.which(cmd)
       pathext = ENV['PATHEXT']
       exts = pathext ? pathext.split(';') : ['']
       path_env = ENV['PATH'] || ""
@@ -23,7 +21,7 @@ module ProjectPullMover
     end
 
     sig { params(str: String).returns(String) }
-    def replace_hyphens(str)
+    def self.replace_hyphens(str)
       str.split("-").map(&:capitalize).join("")
     end
   end

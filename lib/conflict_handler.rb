@@ -24,7 +24,7 @@ if author.nil? || author.strip.size < 1
   exit 1
 end
 
-gh_path = options[:"gh-path"] || which("gh") || "gh"
+gh_path = options[:"gh-path"] || ProjectPullMover::Utils.which("gh") || "gh"
 quiet_mode = options[:quiet]
 pulls_limit = 500
 pull_fields_per_query = 7
@@ -60,7 +60,8 @@ end
 pull_graphql_fields = []
 pull_numbers_by_repo_nwo.each do |repo_nwo, pull_numbers|
   repo_owner, repo_name = repo_nwo.split("/")
-  graphql_field_alias_prefix = "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}"
+  graphql_field_alias_prefix = "pull#{ProjectPullMover::Utils.replace_hyphens(repo_owner)}" \
+    "#{ProjectPullMover::Utils.replace_hyphens(repo_name)}"
   pull_numbers.each do |number|
     graphql_field_alias = "#{graphql_field_alias_prefix}#{number}"
     graphql_field = <<~GRAPHQL

@@ -9,8 +9,6 @@ module ProjectPullMover
   class PullRequest
     extend T::Sig
 
-    include Utils
-
     sig { params(data: T::Hash[T.untyped, T.untyped], options: Options, project: Project, gh_cli: GhCli).void }
     def initialize(data, options:, project:, gh_cli:)
       @data = data
@@ -59,7 +57,7 @@ module ProjectPullMover
     end
 
     def graphql_field_alias
-      @graphql_field_alias ||= "pull#{replace_hyphens(repo_owner)}#{replace_hyphens(repo_name)}#{number}"
+      @graphql_field_alias ||= "pull#{Utils.replace_hyphens(repo_owner)}#{Utils.replace_hyphens(repo_name)}#{number}"
     end
 
     def graphql_field

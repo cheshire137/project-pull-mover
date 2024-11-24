@@ -10,8 +10,6 @@ module ProjectPullMover
   class PullRequestMover
     extend T::Sig
 
-    include Utils
-
     sig { params(data: DataLoader::Result, options: Options, logger: Logger).void }
     def self.run(data:, options:, logger:)
       new(data: data, options: options, logger: logger).run
@@ -85,7 +83,7 @@ module ProjectPullMover
 
     sig {  params(content: String, title: String).void }
     def send_desktop_notification(content:, title:)
-      has_osascript = which("osascript")
+      has_osascript = Utils.which("osascript")
       if has_osascript
         quote_regex = /["']/
         content = content.gsub(quote_regex, "")
