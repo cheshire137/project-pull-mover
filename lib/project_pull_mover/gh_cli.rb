@@ -12,6 +12,7 @@ module ProjectPullMover
     include Utils
 
     class NoJsonError < StandardError; end
+    class GraphqlApiError < StandardError; end
 
     sig { params(options: Options).void }
     def initialize(options)
@@ -59,6 +60,23 @@ module ProjectPullMover
         hash[repo_nwo] ||= []
         hash[repo_nwo] << data["number"]
       end
+    end
+
+    sig { params(graphql_query: String).returns(T.untyped) }
+    def make_graphql_api_query(graphql_query)
+      json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
+      graphql_resp = JSON.parse(json_str)
+
+      unless graphql_resp["data"]
+        graphql_error_msg = if graphql_resp["errors"]
+          graphql_resp["errors"].map { |err| err["message"] }.join("\n")
+        else
+          graphql_resp.inspect
+        end
+        raise GraphqlApiError, "Error: no data returned from the GraphQL API: #{graphql_error_msg}"
+      end
+
+      graphql_resp["data"]
     end
 
     private
