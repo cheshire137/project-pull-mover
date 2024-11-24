@@ -7,121 +7,25 @@ require_relative "../lib/project_pull_mover"
 
 include ProjectPullMover::Utils
 
-options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500)
+options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7)
 options.parse
 exit 1 unless options.valid?
 
-pull_fields_per_query = 7
 gh_path = options.gh_path
 project = ProjectPullMover::Project.new(options)
 quiet_mode = options.quiet_mode?
 gh_cli = ProjectPullMover::GhCli.new(options)
+data_loader = ProjectPullMover::DataLoader.new(gh_cli: gh_cli, options: options)
 
-unless quiet_mode
-  gh_cli.check_auth_status
-  output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
-end
+gh_cli.check_auth_status unless quiet_mode
 
-project_items = begin
-  gh_cli.get_project_items
-rescue ProjectPullMover::GhCli::NoJsonError => err
-  output_error_message(err.message)
+result = data_loader.load
+unless result.success?
+  output_error_message(result.error)
   exit 1
 end
 
-exit 0 if project_items.size < 1
-
-unless quiet_mode
-  pull_units = project_items.size == 1 ? "pull request" : "pull requests"
-  output_success_message("Found #{project_items.size} #{pull_units} in project")
-end
-
-author_pull_numbers_by_repo_nwo = begin
-  gh_cli.author_pull_numbers_by_repo_nwo
-rescue ProjectPullMover::GhCli::NoJsonError => err
-  output_error_message(err.message)
-  exit 1
-end
-
-if author_pull_numbers_by_repo_nwo
-  total_project_items_before = project_items.size
-  project_items = project_items.select do |item|
-    item_repo_nwo = item["content"]["repository"]
-    item_pr_number = item["content"]["number"]
-    author_pull_numbers_by_repo_nwo.key?(item_repo_nwo) &&
-      author_pull_numbers_by_repo_nwo[item_repo_nwo].include?(item_pr_number)
-  end
-  total_project_items_after = project_items.size
-
-  unless quiet_mode
-    if total_project_items_before == total_project_items_after
-      output_info_message("All PRs in project were authored by @#{options.author}")
-    else
-      after_units = total_project_items_after == 1 ? "pull request" : "pull requests"
-      output_info_message("Filtered PRs in project down to #{total_project_items_after} #{after_units} authored " \
-        "by @#{options.author}")
-    end
-  end
-end
-
-project_pulls = project_items.map do |pull_info|
-  ProjectPullMover::PullRequest.new(pull_info, options: options, project: project)
-end
-
-output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode
-graphql_queries = []
-graphql_data = {}
-pull_fields = project_pulls.map(&:graphql_field)
-
-graphql_queries << <<~GRAPHQL
-  query {
-    #{project.owner_graphql_field}
-    #{pull_fields.take(pull_fields_per_query).join("\n")}
-  }
-GRAPHQL
-
-remaining_pull_fields = pull_fields.drop(pull_fields_per_query)
-remaining_pull_fields.each_slice(pull_fields_per_query) do |pull_fields_in_batch|
-  graphql_queries << <<~GRAPHQL
-    query {
-      #{pull_fields_in_batch.join("\n")}
-    }
-  GRAPHQL
-end
-
-output_info_message("Will make #{graphql_queries.size} API request(s) to get pull request data") unless quiet_mode
-
-graphql_queries.each_with_index do |graphql_query, query_index|
-  output_loading_message("Making API request #{query_index + 1} of #{graphql_queries.size}...") unless quiet_mode
-
-  new_graphql_data = begin
-    gh_cli.make_graphql_api_query(graphql_query)
-  rescue ProjectPullMover::GhCli::GraphqlApiError => err
-    output_error_message(err.message)
-    exit 1
-  end
-
-  graphql_data.merge!(new_graphql_data)
-end
-
-if graphql_data["user"]
-  project.set_graphql_data(graphql_data["user"])
-elsif graphql_data["organization"]
-  project.set_graphql_data(graphql_data["organization"])
-end
-
-unless quiet_mode
-  output_info_message("'#{project.status_field}' options enabled: #{project.enabled_options.join(', ')}")
-  output_info_message("Ignored '#{project.status_field}' options: #{project.ignored_option_names.join(', ')}")
-end
-
-project_pulls.each do |pull|
-  extra_info = graphql_data[pull.graphql_field_alias]
-  pull.set_graphql_data(extra_info) if extra_info
-end
-
-output_success_message("Loaded extra pull request info from the API") unless quiet_mode
-
+project_pulls = result.pull_requests
 total_status_changes_by_new_status = Hash.new(0)
 total_labels_applied_by_name = Hash.new(0)
 total_labels_removed_by_name = Hash.new(0)

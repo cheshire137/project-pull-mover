@@ -13,10 +13,14 @@ module ProjectPullMover
     sig { returns Integer }
     attr_reader :proj_items_limit
 
-    sig { params(file: String, proj_items_limit: Integer).void }
-    def initialize(file:, proj_items_limit:)
+    sig { returns Integer }
+    attr_reader :pull_fields_per_query
+
+    sig { params(file: String, proj_items_limit: Integer, pull_fields_per_query: Integer).void }
+    def initialize(file:, proj_items_limit:, pull_fields_per_query:)
       @options = {}
       @proj_items_limit = proj_items_limit
+      @pull_fields_per_query = pull_fields_per_query
       @option_parser = OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,

@@ -57,7 +57,7 @@ module ProjectPullMover
       @pulls_by_author_in_project = get_pulls_by_author_in_project
     end
 
-    sig { returns T.nilable(T::Hash[String, Integer]) }
+    sig { returns T.nilable(T::Hash[String, T::Array[Integer]]) }
     def author_pull_numbers_by_repo_nwo
       pulls_by_author_in_project = self.pulls_by_author_in_project
       return unless pulls_by_author_in_project
