@@ -1,6 +1,7 @@
 # typed: true
 # frozen_string_literal: true
 
+require "json"
 require_relative "options"
 require_relative "utils"
 
@@ -40,6 +41,23 @@ module ProjectPullMover
       end
 
       project_items
+    end
+
+    sig { returns T.nilable(T::Array[T.untyped]) }
+    def get_pulls_by_author_in_project
+      return unless @options.author
+
+      output_info_message("Looking up open pull requests by @#{@options.author} in project...") unless quiet_mode?
+
+      pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{@options.author}\" --project " \
+        "\"#{@options.project_owner}/#{@options.project_number}\" --json \"number,repository\" --limit #{@options.proj_items_limit} --state open"
+      json = T.let(`#{pulls_by_author_in_project_cmd}`, T.nilable(String))
+      if json.nil? || json == ""
+        raise NoJsonError, "Error: no JSON results for pull requests by author in project; " \
+          "command: #{pulls_by_author_in_project_cmd}"
+      end
+
+      JSON.parse(json)
     end
 
     private

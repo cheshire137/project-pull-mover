@@ -2,7 +2,6 @@
 # encoding: utf-8
 
 require "digest"
-require "json"
 require "set"
 require_relative "../lib/project_pull_mover"
 
@@ -41,16 +40,13 @@ end
 if options.author
   output_info_message("Looking up open pull requests by @#{options.author} in project...") unless quiet_mode
 
-  pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{options.author}\" --project " \
-    "\"#{project.owner}/#{project.number}\" --json \"number,repository\" --limit #{proj_items_limit} --state open"
-  json = `#{pulls_by_author_in_project_cmd}`
-  if json.nil? || json == ""
-    output_error_message("Error: no JSON results for pull requests by author in project; " \
-      "command: #{pulls_by_author_in_project_cmd}")
+  pulls_by_author_in_project = begin
+    gh_cli.get_pulls_by_author_in_project
+  rescue ProjectPullMover::GhCli::NoJsonError => err
+    output_error_message(err.message)
     exit 1
   end
 
-  pulls_by_author_in_project = JSON.parse(json)
   pull_numbers_by_repo_nwo = pulls_by_author_in_project.each_with_object({}) do |data, hash|
     repo_nwo = data["repository"]["nameWithOwner"]
     hash[repo_nwo] ||= []
