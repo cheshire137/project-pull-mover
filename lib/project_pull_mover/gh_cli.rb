@@ -19,6 +19,13 @@ module ProjectPullMover
       @options = options
     end
 
+    sig { void }
+    def check_auth_status
+      auth_status_result = `#{gh_path} auth status`
+      output_info_message(auth_status_result.force_encoding("UTF-8"))
+    end
+
+    sig { returns T::Array[T.untyped] }
     def get_project_items
       project_items_cmd = "#{gh_path} project item-list #{@options.project_number} " \
         "--owner #{@options.project_owner} --format json --limit #{@options.proj_items_limit}"

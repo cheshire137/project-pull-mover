@@ -18,8 +18,7 @@ quiet_mode = options.quiet_mode?
 gh_cli = ProjectPullMover::GhCli.new(options)
 
 unless quiet_mode
-  auth_status_result = `#{gh_path} auth status`
-  output_info_message(auth_status_result.force_encoding("UTF-8"))
+  gh_cli.check_auth_status
   output_loading_message("Looking up items in project #{project.number} owned by @#{project.owner}...")
 end
 
