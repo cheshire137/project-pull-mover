@@ -1,12 +1,16 @@
+# typed: true
 # frozen_string_literal: true
 # encoding: utf-8
 
+require_relative "options"
 require_relative "utils"
 
 module ProjectPullMover
   class Project
+    extend T::Sig
     include Utils
 
+    sig { params(options: Options).void }
     def initialize(options)
       @options = options
       @gql_data = {}
@@ -17,39 +21,39 @@ module ProjectPullMover
     end
 
     def gh_path
-      @gh_path ||= @options[:"gh-path"] || which("gh") || "gh"
+      @gh_path ||= @options.gh_path || which("gh") || "gh"
     end
 
     def status_field
-      @status_field ||= @options[:"status-field"]
+      @status_field ||= @options.status_field
     end
 
     def number
-      @number ||= @options[:"project-number"]
+      @number ||= @options.project_number
     end
 
     def owner
-      @owner ||= @options[:"project-owner"]
+      @owner ||= @options.project_owner
     end
 
     def owner_type
-      @owner_type ||= @options[:"project-owner-type"]
+      @owner_type ||= @options.project_owner_type
     end
 
     def author
-      @author ||= @options[:"author"]
+      @author ||= @options.author
     end
 
     def build_names_for_rerun
-      @build_names_for_rerun ||= (@options[:"builds-to-rerun"] || []).map { |name| name.strip.downcase }
+      @build_names_for_rerun ||= (@options.builds_to_rerun || []).map { |name| name.strip.downcase }
     end
 
     def quiet_mode?
-      @options[:quiet]
+      @options.quiet?
     end
 
     def allow_marking_drafts?
-      @options[:"mark-draft"]
+      @options.mark_draft?
     end
 
     def owner_graphql_field
@@ -72,7 +76,7 @@ module ProjectPullMover
     end
 
     def in_progress_option_id
-      @in_progress_option_id ||= @options[:"in-progress"]
+      @in_progress_option_id ||= @options.in_progress
     end
 
     def not_against_main_option_name
@@ -80,7 +84,7 @@ module ProjectPullMover
     end
 
     def not_against_main_option_id
-      @not_against_main_option_id ||= @options[:"not-against-main"]
+      @not_against_main_option_id ||= @options.not_against_main
     end
 
     def needs_review_option_name
@@ -88,7 +92,7 @@ module ProjectPullMover
     end
 
     def needs_review_option_id
-      @needs_review_option_id ||= @options[:"needs-review"]
+      @needs_review_option_id ||= @options.needs_review
     end
 
     def ready_to_deploy_option_name
@@ -96,7 +100,7 @@ module ProjectPullMover
     end
 
     def ready_to_deploy_option_id
-      @ready_to_deploy_option_id ||= @options[:"ready-to-deploy"]
+      @ready_to_deploy_option_id ||= @options.ready_to_deploy
     end
 
     def conflicting_option_name
@@ -104,7 +108,7 @@ module ProjectPullMover
     end
 
     def conflicting_option_id
-      @conflicting_option_id ||= @options[:"conflicting"]
+      @conflicting_option_id ||= @options.conflicting
     end
 
     def any_option_ids?
@@ -130,7 +134,7 @@ module ProjectPullMover
     end
 
     def ignored_option_ids
-      @ignored_option_ids ||= @options[:"ignored"] || []
+      @ignored_option_ids ||= @options.ignored || []
     end
 
     def title
@@ -145,7 +149,7 @@ module ProjectPullMover
 
     def failing_test_label_name
       return @failing_test_label_name if defined?(@failing_test_label_name)
-      result = @options[:"failing-test-label"]
+      result = @options.failing_test_label
       if result
         result = result.strip
         if result.size < 1
