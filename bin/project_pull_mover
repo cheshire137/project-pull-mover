@@ -10,7 +10,8 @@ include ProjectPullMover::Utils
 options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7)
 exit 1 unless options.parse
 
-gh_cli = ProjectPullMover::GhCli.new(options)
+logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
+gh_cli = ProjectPullMover::GhCli.new(options: options, logger: logger)
 gh_cli.check_auth_status unless options.quiet_mode?
 
 result = ProjectPullMover::DataLoader.call(gh_cli: gh_cli, options: options)

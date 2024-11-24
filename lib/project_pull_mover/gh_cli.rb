@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "logger"
 require_relative "options"
 require_relative "utils"
 
@@ -9,20 +10,63 @@ module ProjectPullMover
   class GhCli
     extend T::Sig
 
-    include Utils
-
     class NoJsonError < StandardError; end
     class GraphqlApiError < StandardError; end
 
-    sig { params(options: Options).void }
-    def initialize(options)
+    sig { params(options: Options, logger: Logger).void }
+    def initialize(options:, logger:)
       @options = options
+      @logger = logger
+    end
+
+    sig do
+      params(label_name: String, number: Integer, repo_nwo: String, pull_name: String).returns(T.nilable(String))
+    end
+    def apply_pull_request_label(label_name:, number:, repo_nwo:, pull_name:)
+      @logger.loading("Applying label '#{label_name}' to #{pull_name}...") unless quiet_mode?
+      `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --add-label "#{label_name}"`
+    end
+
+    sig do
+      params(label_name: String, number: Integer, repo_nwo: String, pull_name: String).returns(T.nilable(String))
+    end
+    def remove_pull_request_label(label_name:, number:, repo_nwo:, pull_name:)
+      @logger.loading("Removing label '#{label_name}' from #{pull_name}...") unless quiet_mode?
+      `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --remove-label "#{label_name}"`
+    end
+
+    sig { params(run_id: T.untyped, repo_nwo: String, build_name: T.nilable(String)).returns(T.nilable(String)) }
+    def rerun_failed_run(run_id:, repo_nwo:, build_name: nil)
+      @logger.loading("Rerunning failed run #{build_name || run_id} for #{to_s}...") unless quiet_mode?
+      `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_nwo}"`
+    end
+
+    sig { params(number: Integer, repo_nwo: String).returns(T.nilable(String)) }
+    def mark_pull_request_as_draft(number:, repo_nwo:)
+      @logger.loading("Marking #{to_s} as a draft...") unless quiet_mode?
+      `#{gh_path} pr ready --undo #{number} --repo "#{repo_nwo}"`
+    end
+
+    sig do
+      params(
+        option_id: String,
+        project_item_id: String,
+        project_global_id: String,
+        status_field_id: String,
+        old_option_name: String,
+        new_option_name: String
+      ).returns(T.nilable(String))
+    end
+    def set_project_item_status(option_id:, project_item_id:, project_global_id:, status_field_id:, old_option_name:, new_option_name:)
+      @logger.loading("Moving #{to_s} out of '#{old_option_name}' column to " \
+        "'#{new_option_name}'...") unless quiet_mode?
+      `#{gh_path} project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
     end
 
     sig { void }
     def check_auth_status
       auth_status_result = `#{gh_path} auth status`
-      output_info_message(auth_status_result.force_encoding("UTF-8"))
+      @logger.info(auth_status_result.force_encoding("UTF-8"))
     end
 
     sig { returns T::Array[T.untyped] }
@@ -37,13 +81,13 @@ module ProjectPullMover
       all_project_items = JSON.parse(json)["items"]
       unless quiet_mode?
         units = all_project_items.size == 1 ? "item" : "items"
-        output_info_message("Found #{all_project_items.size} #{units} in project")
+        @logger.info("Found #{all_project_items.size} #{units} in project")
       end
 
       project_items = all_project_items.select { |item| item["content"]["type"] == "PullRequest" }
       if project_items.size < 1
         unless quiet_mode?
-          output_success_message("No pull requests found in project #{@options.project_number} by " \
+          @logger.success("No pull requests found in project #{@options.project_number} by " \
             "@#{@options.project_owner}")
         end
       end
@@ -92,7 +136,7 @@ module ProjectPullMover
     def get_pulls_by_author_in_project
       return unless @options.author
 
-      output_info_message("Looking up open pull requests by @#{@options.author} in project...") unless quiet_mode?
+      @logger.info("Looking up open pull requests by @#{@options.author} in project...") unless quiet_mode?
 
       pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{@options.author}\" --project " \
         "\"#{@options.project_owner}/#{@options.project_number}\" --json \"number,repository\" --limit #{@options.proj_items_limit} --state open"
