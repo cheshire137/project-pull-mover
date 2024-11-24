@@ -1,6 +1,8 @@
 # typed: true
 # frozen_string_literal: true
 
+require_relative "data_loader"
+require_relative "logger"
 require_relative "options"
 require_relative "utils"
 
@@ -10,15 +12,16 @@ module ProjectPullMover
 
     include Utils
 
-    sig { params(data: DataLoader::Result, options: Options).void }
-    def self.run(data:, options:)
-      new(data: data, options: options).run
+    sig { params(data: DataLoader::Result, options: Options, logger: Logger).void }
+    def self.run(data:, options:, logger:)
+      new(data: data, options: options, logger: logger).run
     end
 
-    sig { params(data: DataLoader::Result, options: Options).void }
-    def initialize(data:, options:)
+    sig { params(data: DataLoader::Result, options: Options, logger: Logger).void }
+    def initialize(data:, options:, logger:)
       @data = data
       @options = options
+      @logger = logger
     end
 
     sig { void }
@@ -71,14 +74,25 @@ module ProjectPullMover
         end
 
         message = message_pieces.join(", ")
-        output_info_message(message) unless quiet_mode?
+        @logger.info(message) unless quiet_mode?
         send_desktop_notification(content: message, title: @data.project.title)
       else
-        output_info_message("No pull requests needed a different status or a label change") unless quiet_mode?
+        @logger.info("No pull requests needed a different status or a label change") unless quiet_mode?
       end
     end
 
     private
+
+    sig {  params(content: String, title: String).void }
+    def send_desktop_notification(content:, title:)
+      has_osascript = which("osascript")
+      if has_osascript
+        quote_regex = /["']/
+        content = content.gsub(quote_regex, "")
+        title = title.gsub(quote_regex, "")
+        `osascript -e 'display notification "#{content}" with title "#{title}"'`
+      end
+    end
 
     sig { returns(T::Boolean) }
     def quiet_mode?

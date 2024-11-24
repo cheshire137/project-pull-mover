@@ -7,17 +7,18 @@ require_relative "../lib/project_pull_mover"
 
 include ProjectPullMover::Utils
 
-options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7)
+logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
+options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7,
+  logger: logger)
 exit 1 unless options.parse
 
-logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
 gh_cli = ProjectPullMover::GhCli.new(options: options, logger: logger)
 gh_cli.check_auth_status unless options.quiet_mode?
 
-result = ProjectPullMover::DataLoader.call(gh_cli: gh_cli, options: options)
+result = ProjectPullMover::DataLoader.call(gh_cli: gh_cli, options: options, logger: logger)
 unless result.success?
-  output_error_message(result.error_message)
+  logger.error(result.error_message)
   exit 1
 end
 
-ProjectPullMover::PullRequestMover.run(data: result, options: options)
+ProjectPullMover::PullRequestMover.run(data: result, options: options, logger: logger)

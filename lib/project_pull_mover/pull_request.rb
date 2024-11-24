@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 # encoding: utf-8
 
+require_relative "gh_cli"
 require_relative "utils"
 
 module ProjectPullMover
@@ -10,13 +11,14 @@ module ProjectPullMover
 
     include Utils
 
-    sig { params(data: T::Hash[T.untyped, T.untyped], options: Options, project: Project).void }
-    def initialize(data, options:, project:)
+    sig { params(data: T::Hash[T.untyped, T.untyped], options: Options, project: Project, gh_cli: GhCli).void }
+    def initialize(data, options:, project:, gh_cli:)
       @data = data
       @options = options
       @gql_data = {}
       @repo = nil
       @project = project
+      @gh_cli = gh_cli
     end
 
     def set_graphql_data(repo_and_pull_data)
@@ -235,46 +237,88 @@ module ProjectPullMover
     end
 
     def set_in_progress_status
-      output_status_change_loading_message(@project.in_progress_option_name) unless quiet_mode?
-      set_project_item_status(@options.in_progress_option_id)
+      option_id = @options.in_progress_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.in_progress_option_name,
+      )
     end
 
     def set_needs_review_status
-      output_status_change_loading_message(@project.needs_review_option_name) unless quiet_mode?
-      set_project_item_status(@options.needs_review_option_id)
+      option_id = @options.needs_review_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.needs_review_option_name,
+      )
     end
 
     def set_not_against_main_status
-      output_status_change_loading_message(@project.not_against_main_option_name) unless quiet_mode?
-      set_project_item_status(@options.not_against_main_option_id)
+      option_id = @options.not_against_main_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.not_against_main_option_name,
+      )
     end
 
     def set_ready_to_deploy_status
-      output_status_change_loading_message(@project.ready_to_deploy_option_name) unless quiet_mode?
-      set_project_item_status(@options.ready_to_deploy_option_id)
+      option_id = @options.ready_to_deploy_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.ready_to_deploy_option_name,
+      )
     end
 
     def set_conflicting_status
-      output_status_change_loading_message(@project.conflicting_option_name) unless quiet_mode?
-      set_project_item_status(@options.conflicting_option_id)
+      option_id = @options.conflicting_option_id
+      return unless option_id
+
+      @gh_cli.set_project_item_status(
+        option_id: option_id,
+        project_item_id: project_item_id,
+        project_global_id: project_global_id,
+        status_field_id: status_field_id,
+        old_option_name: current_status_option_name,
+        new_option_name: @project.conflicting_option_name,
+      )
     end
 
     def apply_label(label_name:)
-      output_loading_message("Applying label '#{label_name}' to #{to_s}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --add-label "#{label_name}"`
+      @gh_cli.apply_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
+        pull_name: to_s)
     end
 
     def remove_label(label_name:)
-      output_loading_message("Removing label '#{label_name}' from #{to_s}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_name_with_owner}" --remove-label "#{label_name}"`
+      @gh_cli.remove_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
+        pull_name: to_s)
     end
 
     def rerun_failed_run(run_id:)
-      unless quiet_mode?
-        build_name = build_name_for_run_id(run_id)
-        output_loading_message("Rerunning failed run #{build_name || run_id} for #{to_s}...")
-      end
-      `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_name_with_owner}"`
+      @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name_for_run_id(run_id),
+        repo_nwo: repo_name_with_owner)
     end
 
     def rerun_failing_required_builds
@@ -289,8 +333,7 @@ module ProjectPullMover
     end
 
     def mark_as_draft
-      output_loading_message("Marking #{to_s} as a draft...") unless quiet_mode?
-      `#{gh_path} pr ready --undo #{number} --repo "#{repo_name_with_owner}"`
+      @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner)
     end
 
     def can_mark_as_draft?
@@ -495,16 +538,6 @@ module ProjectPullMover
       @last_commit = if node
         node["commit"]
       end
-    end
-
-    def set_project_item_status(option_id)
-      return false unless option_id
-      `#{gh_path} project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
-    end
-
-    def output_status_change_loading_message(target_column_name)
-      output_loading_message("Moving #{to_s} out of '#{current_status_option_name}' column to " \
-        "'#{target_column_name}'...") unless quiet_mode?
     end
 
     sig { returns(T::Boolean) }

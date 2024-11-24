@@ -2,19 +2,17 @@
 # frozen_string_literal: true
 
 require_relative "gh_cli"
+require_relative "logger"
 require_relative "options"
 require_relative "project"
-require_relative "utils"
 
 module ProjectPullMover
   class DataLoader
     extend T::Sig
 
-    include Utils
-
-    sig { params(gh_cli: GhCli, options: Options).returns(T.any(Result, ErrorDetails)) }
-    def self.call(gh_cli:, options:)
-      new(gh_cli: gh_cli, options: options).load
+    sig { params(gh_cli: GhCli, options: Options, logger: Logger).returns(T.any(Result, ErrorDetails)) }
+    def self.call(gh_cli:, options:, logger:)
+      new(gh_cli: gh_cli, options: options, logger: logger).load
     end
 
     class ErrorDetails
@@ -55,17 +53,18 @@ module ProjectPullMover
       end
     end
 
-    sig { params(gh_cli: GhCli, options: Options).void }
-    def initialize(gh_cli:, options:)
+    sig { params(gh_cli: GhCli, options: Options, logger: Logger).void }
+    def initialize(gh_cli:, options:, logger:)
       @gh_cli = gh_cli
       @options = options
+      @logger = logger
       @project = T.let(Project.new(options), Project)
     end
 
     sig { returns T.any(Result, ErrorDetails) }
     def load
       unless quiet_mode?
-        output_loading_message("Looking up items in project #{@project.number} owned by @#{@project.owner}...")
+        @logger.loading("Looking up items in project #{@project.number} owned by @#{@project.owner}...")
       end
 
       project_items = begin
@@ -78,7 +77,7 @@ module ProjectPullMover
 
       unless quiet_mode?
         pull_units = project_items.size == 1 ? "pull request" : "pull requests"
-        output_success_message("Found #{project_items.size} #{pull_units} in project")
+        @logger.success("Found #{project_items.size} #{pull_units} in project")
       end
 
       author_pull_numbers_by_repo_nwo = begin
@@ -99,20 +98,20 @@ module ProjectPullMover
 
         unless quiet_mode?
           if total_project_items_before == total_project_items_after
-            output_info_message("All PRs in project were authored by @#{@options.author}")
+            @logger.info("All PRs in project were authored by @#{@options.author}")
           else
             after_units = total_project_items_after == 1 ? "pull request" : "pull requests"
-            output_info_message("Filtered PRs in project down to #{total_project_items_after} #{after_units} authored " \
+            @logger.info("Filtered PRs in project down to #{total_project_items_after} #{after_units} authored " \
               "by @#{@options.author}")
           end
         end
       end
 
       project_pulls = project_items.map do |pull_info|
-        ProjectPullMover::PullRequest.new(pull_info, options: @options, project: @project)
+        ProjectPullMover::PullRequest.new(pull_info, options: @options, project: @project, gh_cli: @gh_cli)
       end
 
-      output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode?
+      @logger.loading("Looking up more info about each pull request in project...") unless quiet_mode?
       graphql_queries = []
       graphql_data = {}
       pull_fields = project_pulls.map(&:graphql_field)
@@ -134,12 +133,12 @@ module ProjectPullMover
       end
 
       unless quiet_mode?
-        output_info_message("Will make #{graphql_queries.size} API request(s) to get pull request data")
+        @logger.info("Will make #{graphql_queries.size} API request(s) to get pull request data")
       end
 
       graphql_queries.each_with_index do |graphql_query, query_index|
         unless quiet_mode?
-          output_loading_message("Making API request #{query_index + 1} of #{graphql_queries.size}...")
+          @logger.loading("Making API request #{query_index + 1} of #{graphql_queries.size}...")
         end
 
         new_graphql_data = begin
@@ -158,8 +157,8 @@ module ProjectPullMover
       end
 
       unless quiet_mode?
-        output_info_message("'#{@options.status_field}' options enabled: #{@project.enabled_options.join(', ')}")
-        output_info_message("Ignored '#{@options.status_field}' options: #{@project.ignored_option_names.join(', ')}")
+        @logger.info("'#{@options.status_field}' options enabled: #{@project.enabled_options.join(', ')}")
+        @logger.info("Ignored '#{@options.status_field}' options: #{@project.ignored_option_names.join(', ')}")
       end
 
       project_pulls.each do |pull|
@@ -167,7 +166,7 @@ module ProjectPullMover
         pull.set_graphql_data(extra_info) if extra_info
       end
 
-      output_success_message("Loaded extra pull request info from the API") unless quiet_mode?
+      @logger.success("Loaded extra pull request info from the API") unless quiet_mode?
 
       Result.new(project: @project, pull_requests: project_pulls)
     end

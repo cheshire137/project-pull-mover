@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "optparse"
+require_relative "logger"
 require_relative "utils"
 
 module ProjectPullMover
@@ -16,11 +17,12 @@ module ProjectPullMover
     sig { returns Integer }
     attr_reader :pull_fields_per_query
 
-    sig { params(file: String, proj_items_limit: Integer, pull_fields_per_query: Integer).void }
-    def initialize(file:, proj_items_limit:, pull_fields_per_query:)
+    sig { params(file: String, proj_items_limit: Integer, pull_fields_per_query: Integer, logger: Logger).void }
+    def initialize(file:, proj_items_limit:, pull_fields_per_query:, logger:)
       @options = {}
       @proj_items_limit = proj_items_limit
       @pull_fields_per_query = pull_fields_per_query
+      @logger = logger
       @option_parser = OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,
@@ -154,20 +156,20 @@ module ProjectPullMover
     sig { returns T::Boolean }
     def valid?
       unless project_number && project_owner && status_field
-        output_error_message("Error: missing required options")
-        puts to_s
+        @logger.error("Error: missing required options")
+        @logger.info(to_s)
         return false
       end
 
       unless %w(user organization).include?(project_owner_type)
-        output_error_message("Error: invalid project owner type")
-        puts to_s
+        @logger.error("Error: invalid project owner type")
+        @logger.info(to_s)
         return false
       end
 
       unless any_option_ids?
-        output_error_message("Error: you must specify at least one option ID for the status field")
-        puts to_s
+        @logger.error("Error: you must specify at least one option ID for the status field")
+        @logger.info(to_s)
         return false
       end
 
