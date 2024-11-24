@@ -2,10 +2,13 @@
 # frozen_string_literal: true
 
 require "optparse"
+require_relative "utils"
 
 module ProjectPullMover
   class Options
     extend T::Sig
+
+    include Utils
 
     sig { params(file: String).void }
     def initialize(file)
@@ -46,9 +49,9 @@ module ProjectPullMover
       @option_parser.parse!(into: @options)
     end
 
-    sig { returns T.nilable(String) }
+    sig { returns String }
     def gh_path
-      @options[:"gh-path"]
+      @options[:"gh-path"] || which("gh") || "gh"
     end
 
     sig { returns T.nilable(String) }
@@ -76,49 +79,49 @@ module ProjectPullMover
       @options[:"author"]
     end
 
-    sig { returns T.nilable(T::Array[String]) }
-    def builds_to_rerun
-      @options[:"builds-to-rerun"]
+    sig { returns T::Array[String] }
+    def build_names_for_rerun
+      (@options[:"builds-to-rerun"] || []).map { |name| name.strip.downcase }
     end
 
     sig { returns T::Boolean }
-    def quiet?
+    def quiet_mode?
       !!@options[:quiet]
     end
 
     sig { returns T::Boolean }
-    def mark_draft?
+    def allow_marking_drafts?
       !!@options[:"mark-draft"]
     end
 
     sig { returns T.nilable(String)}
-    def in_progress
+    def in_progress_option_id
       @options[:"in-progress"]
     end
 
     sig { returns T.nilable(String)}
-    def not_against_main
+    def not_against_main_option_id
       @options[:"not-against-main"]
     end
 
     sig { returns T.nilable(String)}
-    def needs_review
+    def needs_review_option_id
       @options[:"needs-review"]
     end
 
     sig { returns T.nilable(String)}
-    def ready_to_deploy
+    def ready_to_deploy_option_id
       @options[:"ready-to-deploy"]
     end
 
     sig { returns T.nilable(String)}
-    def conflicting
+    def conflicting_option_id
       @options[:"conflicting"]
     end
 
-    sig { returns T.nilable(T::Array[String])}
-    def ignored
-      @options[:"ignored"]
+    sig { returns T::Array[String] }
+    def ignored_option_ids
+      @options[:"ignored"] || []
     end
 
     sig { returns T.nilable(String) }
@@ -128,6 +131,13 @@ module ProjectPullMover
 
     def to_s
       @option_parser.to_s
+    end
+
+    sig { returns T::Boolean }
+    def any_option_ids?
+      result = in_progress_option_id || not_against_main_option_id || needs_review_option_id ||
+        ready_to_deploy_option_id || conflicting_option_id
+      !!result
     end
   end
 end

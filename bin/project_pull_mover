@@ -13,10 +13,10 @@ options.parse
 
 proj_items_limit = 500
 pull_fields_per_query = 7
+gh_path = options.gh_path
 project = ProjectPullMover::Project.new(options)
-gh_path = project.gh_path
 
-unless project.number && project.owner && project.status_field
+unless project.number && project.owner && options.status_field
   output_error_message("Error: missing required options")
   puts options
   exit 1
@@ -28,13 +28,13 @@ unless %w(user organization).include?(project.owner_type)
   exit 1
 end
 
-unless project.any_option_ids?
+unless options.any_option_ids?
   output_error_message("Error: you must specify at least one option ID for the status field")
   puts options
   exit 1
 end
 
-quiet_mode = project.quiet_mode?
+quiet_mode = options.quiet_mode?
 
 unless quiet_mode
   auth_status_result = `#{gh_path} auth status`
@@ -70,10 +70,10 @@ unless quiet_mode
   output_success_message("Found #{project_items.size} #{pull_units} in project")
 end
 
-if project.author
-  output_info_message("Looking up open pull requests by @#{project.author} in project...") unless quiet_mode
+if options.author
+  output_info_message("Looking up open pull requests by @#{options.author} in project...") unless quiet_mode
 
-  pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{project.author}\" --project " \
+  pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{options.author}\" --project " \
     "\"#{project.owner}/#{project.number}\" --json \"number,repository\" --limit #{proj_items_limit} --state open"
   json = `#{pulls_by_author_in_project_cmd}`
   if json.nil? || json == ""
@@ -99,16 +99,18 @@ if project.author
 
   unless quiet_mode
     if total_project_items_before == total_project_items_after
-      output_info_message("All PRs in project were authored by @#{project.author}")
+      output_info_message("All PRs in project were authored by @#{options.author}")
     else
       after_units = total_project_items_after == 1 ? "pull request" : "pull requests"
       output_info_message("Filtered PRs in project down to #{total_project_items_after} #{after_units} authored " \
-        "by @#{project.author}")
+        "by @#{options.author}")
     end
   end
 end
 
-project_pulls = project_items.map { |pull_info| ProjectPullMover::PullRequest.new(pull_info, project: project) }
+project_pulls = project_items.map do |pull_info|
+  ProjectPullMover::PullRequest.new(pull_info, options: options, project: project)
+end
 
 output_loading_message("Looking up more info about each pull request in project...") unless quiet_mode
 graphql_queries = []

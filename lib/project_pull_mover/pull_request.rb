@@ -1,11 +1,19 @@
-# typed: false
+# typed: true
 # frozen_string_literal: true
 # encoding: utf-8
 
+require_relative "utils"
+
 module ProjectPullMover
   class PullRequest
-    def initialize(data, project:)
+    extend T::Sig
+
+    include Utils
+
+    sig { params(data: T::Hash[T.untyped, T.untyped], options: Options, project: Project).void }
+    def initialize(data, options:, project:)
       @data = data
+      @options = options
       @gql_data = {}
       @repo = nil
       @project = project
@@ -93,7 +101,7 @@ module ProjectPullMover
               nodes {
                 id
                 project { id number }
-                fieldValueByName(name: "#{@project.status_field}") {
+                fieldValueByName(name: "#{@options.status_field}") {
                   ... on ProjectV2ItemFieldSingleSelectValue {
                     field { ... on ProjectV2SingleSelectField { id } }
                     optionId
@@ -203,52 +211,52 @@ module ProjectPullMover
     end
 
     def has_in_progress_status?
-      current_status_option_id == @project.in_progress_option_id
+      current_status_option_id == @options.in_progress_option_id
     end
 
     def has_not_against_main_status?
-      current_status_option_id == @project.not_against_main_option_id
+      current_status_option_id == @options.not_against_main_option_id
     end
 
     def has_needs_review_status?
-      current_status_option_id == @project.needs_review_option_id
+      current_status_option_id == @options.needs_review_option_id
     end
 
     def has_ready_to_deploy_status?
-      current_status_option_id == @project.ready_to_deploy_option_id
+      current_status_option_id == @options.ready_to_deploy_option_id
     end
 
     def has_conflicting_status?
-      current_status_option_id == @project.conflicting_option_id
+      current_status_option_id == @options.conflicting_option_id
     end
 
     def has_ignored_status?
-      @project.ignored_option_ids.include?(current_status_option_id)
+      @options.ignored_option_ids.include?(current_status_option_id)
     end
 
     def set_in_progress_status
       output_status_change_loading_message(@project.in_progress_option_name) unless quiet_mode?
-      set_project_item_status(@project.in_progress_option_id)
+      set_project_item_status(@options.in_progress_option_id)
     end
 
     def set_needs_review_status
       output_status_change_loading_message(@project.needs_review_option_name) unless quiet_mode?
-      set_project_item_status(@project.needs_review_option_id)
+      set_project_item_status(@options.needs_review_option_id)
     end
 
     def set_not_against_main_status
       output_status_change_loading_message(@project.not_against_main_option_name) unless quiet_mode?
-      set_project_item_status(@project.not_against_main_option_id)
+      set_project_item_status(@options.not_against_main_option_id)
     end
 
     def set_ready_to_deploy_status
       output_status_change_loading_message(@project.ready_to_deploy_option_name) unless quiet_mode?
-      set_project_item_status(@project.ready_to_deploy_option_id)
+      set_project_item_status(@options.ready_to_deploy_option_id)
     end
 
     def set_conflicting_status
       output_status_change_loading_message(@project.conflicting_option_name) unless quiet_mode?
-      set_project_item_status(@project.conflicting_option_id)
+      set_project_item_status(@options.conflicting_option_id)
     end
 
     def apply_label(label_name:)
@@ -286,22 +294,22 @@ module ProjectPullMover
     end
 
     def can_mark_as_draft?
-      !draft? && !enqueued? && @project.allow_marking_drafts?
+      !draft? && !enqueued? && @options.allow_marking_drafts?
     end
 
     def should_have_in_progress_status?
       return false if has_ignored_status?
-      return false unless @project.in_progress_option_id # can't
+      return false unless @options.in_progress_option_id # can't
       return false if enqueued? # don't say it's in progress if we're already in the merge queue
 
       # If we have a 'Conflicting' column...
-      if @project.conflicting_option_id
+      if @options.conflicting_option_id
         return false if conflicting? # don't put PR with merge conflicts into 'In progress'
         return false if unknown_merge_state? # don't assume it's not conflicting if we can't tell
       end
 
       # If not based on 'main', should be in 'Not against main' if we have such a column
-      return false if daisy_chained? && @project.not_against_main_option_id
+      return false if daisy_chained? && @options.not_against_main_option_id
 
       if has_needs_review_status? || has_ready_to_deploy_status?
         failing_required_builds? || draft?
@@ -312,15 +320,15 @@ module ProjectPullMover
 
     def should_have_needs_review_status?
       return false if has_ignored_status?
-      return false unless @project.needs_review_option_id # can't
+      return false unless @options.needs_review_option_id # can't
       return false if conflicting? # don't ask for review when there are conflicts to resolve
       return false if draft? # don't ask for review if it's still a draft
       return false if daisy_chained? # don't ask for review when base branch will change
 
       # Don't ask for review if we're already in the merge queue and have a 'Ready to deploy' column:
-      return false if enqueued? && @project.ready_to_deploy_option_id
+      return false if enqueued? && @options.ready_to_deploy_option_id
 
-      already_approved_check = if @project.ready_to_deploy_option_id
+      already_approved_check = if @options.ready_to_deploy_option_id
         # Only care about whether the PR has received an approval if there's another column it could move to
         # after 'Needs review'.
         !approved?
@@ -334,19 +342,19 @@ module ProjectPullMover
 
     def should_have_not_against_main_status?
       return false if has_ignored_status?
-      return false unless @project.not_against_main_option_id # can't
+      return false unless @options.not_against_main_option_id # can't
       daisy_chained?
     end
 
     def should_have_ready_to_deploy_status?
       return false if has_ignored_status?
-      return false unless @project.ready_to_deploy_option_id # can't
+      return false unless @options.ready_to_deploy_option_id # can't
       !draft? && enqueued?
     end
 
     def should_have_conflicting_status?
       return false if has_ignored_status?
-      return false unless @project.conflicting_option_id # can't
+      return false unless @options.conflicting_option_id # can't
       against_default_branch? && conflicting? && !enqueued?
     end
 
@@ -466,7 +474,10 @@ module ProjectPullMover
     end
 
     def load_required_checks
-      json_str = `#{gh_path} pr checks #{number} --repo "#{repo_name_with_owner}" --required --json "link,state,name"`
+      json_str = T.let(
+        `#{gh_path} pr checks #{number} --repo "#{repo_name_with_owner}" --required --json "link,state,name"`,
+        T.nilable(String)
+      )
       json_str.nil? || json_str.size < 1 ? [] : JSON.parse(json_str)
     end
 
@@ -475,7 +486,7 @@ module ProjectPullMover
     end
 
     def build_names_for_rerun
-      @project.build_names_for_rerun
+      @options.build_names_for_rerun
     end
 
     def last_commit
@@ -496,12 +507,14 @@ module ProjectPullMover
         "'#{target_column_name}'...") unless quiet_mode?
     end
 
+    sig { returns(T::Boolean) }
     def quiet_mode?
-      @project.quiet_mode?
+      @options.quiet_mode?
     end
 
+    sig { returns(String) }
     def gh_path
-      @project.gh_path
+      @options.gh_path
     end
   end
 end

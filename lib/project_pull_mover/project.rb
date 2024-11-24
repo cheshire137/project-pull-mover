@@ -3,12 +3,10 @@
 # encoding: utf-8
 
 require_relative "options"
-require_relative "utils"
 
 module ProjectPullMover
   class Project
     extend T::Sig
-    include Utils
 
     sig { params(options: Options).void }
     def initialize(options)
@@ -18,14 +16,6 @@ module ProjectPullMover
 
     def set_graphql_data(value)
       @gql_data = value
-    end
-
-    def gh_path
-      @gh_path ||= @options.gh_path || which("gh") || "gh"
-    end
-
-    def status_field
-      @status_field ||= @options.status_field
     end
 
     def number
@@ -40,28 +30,12 @@ module ProjectPullMover
       @owner_type ||= @options.project_owner_type
     end
 
-    def author
-      @author ||= @options.author
-    end
-
-    def build_names_for_rerun
-      @build_names_for_rerun ||= (@options.builds_to_rerun || []).map { |name| name.strip.downcase }
-    end
-
-    def quiet_mode?
-      @options.quiet?
-    end
-
-    def allow_marking_drafts?
-      @options.mark_draft?
-    end
-
     def owner_graphql_field
       <<~GRAPHQL
         #{owner_type}(login: "#{owner}") {
           projectV2(number: #{number}) {
             title
-            field(name: "#{status_field}") {
+            field(name: "#{@options.status_field}") {
               ... on ProjectV2SingleSelectField {
                 options { id name }
               }
@@ -72,69 +46,40 @@ module ProjectPullMover
     end
 
     def in_progress_option_name
-      @in_progress_option_name ||= option_name_for(in_progress_option_id) || "In progress"
-    end
-
-    def in_progress_option_id
-      @in_progress_option_id ||= @options.in_progress
+      @in_progress_option_name ||= option_name_for(@options.in_progress_option_id) || "In progress"
     end
 
     def not_against_main_option_name
-      @not_against_main_option_name ||= option_name_for(not_against_main_option_id) || "Not against main"
-    end
-
-    def not_against_main_option_id
-      @not_against_main_option_id ||= @options.not_against_main
+      @not_against_main_option_name ||= option_name_for(@options.not_against_main_option_id) || "Not against main"
     end
 
     def needs_review_option_name
-      @needs_review_option_name ||= option_name_for(needs_review_option_id) || "Needs review"
-    end
-
-    def needs_review_option_id
-      @needs_review_option_id ||= @options.needs_review
+      @needs_review_option_name ||= option_name_for(@options.needs_review_option_id) || "Needs review"
     end
 
     def ready_to_deploy_option_name
-      @ready_to_deploy_option_name ||= option_name_for(ready_to_deploy_option_id) || "Ready to deploy"
-    end
-
-    def ready_to_deploy_option_id
-      @ready_to_deploy_option_id ||= @options.ready_to_deploy
+      @ready_to_deploy_option_name ||= option_name_for(@options.ready_to_deploy_option_id) || "Ready to deploy"
     end
 
     def conflicting_option_name
-      @conflicting_option_name ||= option_name_for(conflicting_option_id) || "Conflicting"
-    end
-
-    def conflicting_option_id
-      @conflicting_option_id ||= @options.conflicting
-    end
-
-    def any_option_ids?
-      in_progress_option_id || not_against_main_option_id || needs_review_option_id || ready_to_deploy_option_id ||
-        conflicting_option_id
+      @conflicting_option_name ||= option_name_for(@options.conflicting_option_id) || "Conflicting"
     end
 
     def enabled_options
       result = []
-      result << in_progress_option_name if in_progress_option_id
-      result << not_against_main_option_name if not_against_main_option_id
-      result << needs_review_option_name if needs_review_option_id
-      result << ready_to_deploy_option_name if ready_to_deploy_option_id
-      result << conflicting_option_name if conflicting_option_id
+      result << in_progress_option_name if @options.in_progress_option_id
+      result << not_against_main_option_name if @options.not_against_main_option_id
+      result << needs_review_option_name if @options.needs_review_option_id
+      result << ready_to_deploy_option_name if @options.ready_to_deploy_option_id
+      result << conflicting_option_name if @options.conflicting_option_id
       result
     end
 
     def ignored_option_names
       return @ignored_option_names if @ignored_option_names
-      names = ignored_option_ids.map { |option_id| option_name_for(option_id) }.compact
+      names = @options.ignored_option_ids.map { |option_id| option_name_for(option_id) }.compact
       names = ["Ignored"] if names.size < 1
       @ignored_option_names = names
-    end
-
-    def ignored_option_ids
-      @ignored_option_ids ||= @options.ignored || []
     end
 
     def title
