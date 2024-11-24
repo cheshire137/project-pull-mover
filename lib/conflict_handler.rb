@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# typed: false
 # encoding: utf-8
 
 require "optparse"

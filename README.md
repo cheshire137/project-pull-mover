@@ -124,10 +124,16 @@ flow. Once complete, you can run `gh auth token` to get your GitHub API token.
 
 ## How to develop
 
-### Building
+Install dependencies:
 
 ```sh
 bundle install
+```
+
+Check types:
+
+```sh
+srb tc
 ```
 
 ### Creating a tag
