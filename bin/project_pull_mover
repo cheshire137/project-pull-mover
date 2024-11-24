@@ -5,8 +5,6 @@ require "digest"
 require "set"
 require_relative "../lib/project_pull_mover"
 
-include ProjectPullMover::Utils
-
 logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
 options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7,
   logger: logger)
