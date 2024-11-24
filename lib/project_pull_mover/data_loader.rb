@@ -12,6 +12,11 @@ module ProjectPullMover
 
     include Utils
 
+    sig { params(gh_cli: GhCli, options: Options).returns(T.any(Result, ErrorDetails)) }
+    def self.call(gh_cli:, options:)
+      new(gh_cli: gh_cli, options: options).load
+    end
+
     class ErrorDetails
       extend T::Sig
 

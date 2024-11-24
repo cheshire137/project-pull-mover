@@ -52,9 +52,10 @@ module ProjectPullMover
       end
     end
 
-    sig { void }
+    sig { returns(T::Boolean) }
     def parse
       @option_parser.parse!(into: @options)
+      valid?
     end
 
     sig { returns String }
@@ -147,6 +148,8 @@ module ProjectPullMover
         ready_to_deploy_option_id || conflicting_option_id
       !!result
     end
+
+    private
 
     sig { returns T::Boolean }
     def valid?

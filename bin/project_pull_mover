@@ -8,15 +8,12 @@ require_relative "../lib/project_pull_mover"
 include ProjectPullMover::Utils
 
 options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7)
-options.parse
-exit 1 unless options.valid?
+exit 1 unless options.parse
 
 gh_cli = ProjectPullMover::GhCli.new(options)
-data_loader = ProjectPullMover::DataLoader.new(gh_cli: gh_cli, options: options)
-
 gh_cli.check_auth_status unless options.quiet_mode?
 
-result = data_loader.load
+result = ProjectPullMover::DataLoader.call(gh_cli: gh_cli, options: options)
 unless result.success?
   output_error_message(result.error_message)
   exit 1
