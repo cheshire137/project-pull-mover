@@ -147,6 +147,18 @@ Check types:
 srb tc
 ```
 
+Run tests:
+
+```sh
+rake test
+```
+
+Run a single test file with a command like `ruby -Ilib:test PATH_TO_TEST`, for example:
+
+```sh
+ruby -Ilib:test test/lib/project_pull_mover/utils_test.rb
+```
+
 ### Creating a tag
 
 Update `VERSION` in [version.rb](./lib/project_pull_mover/version.rb).
