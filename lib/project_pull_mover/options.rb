@@ -139,5 +139,28 @@ module ProjectPullMover
         ready_to_deploy_option_id || conflicting_option_id
       !!result
     end
+
+    sig { returns T::Boolean }
+    def valid?
+      unless project_number && project_owner && status_field
+        output_error_message("Error: missing required options")
+        puts to_s
+        return false
+      end
+
+      unless %w(user organization).include?(project_owner_type)
+        output_error_message("Error: invalid project owner type")
+        puts to_s
+        return false
+      end
+
+      unless any_option_ids?
+        output_error_message("Error: you must specify at least one option ID for the status field")
+        puts to_s
+        return false
+      end
+
+      true
+    end
   end
 end

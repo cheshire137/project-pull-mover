@@ -10,29 +10,12 @@ include ProjectPullMover::Utils
 
 options = ProjectPullMover::Options.new(__FILE__)
 options.parse
+exit 1 unless options.valid?
 
 proj_items_limit = 500
 pull_fields_per_query = 7
 gh_path = options.gh_path
 project = ProjectPullMover::Project.new(options)
-
-unless project.number && project.owner && options.status_field
-  output_error_message("Error: missing required options")
-  puts options
-  exit 1
-end
-
-unless %w(user organization).include?(project.owner_type)
-  output_error_message("Error: invalid project owner type")
-  puts options
-  exit 1
-end
-
-unless options.any_option_ids?
-  output_error_message("Error: you must specify at least one option ID for the status field")
-  puts options
-  exit 1
-end
 
 quiet_mode = options.quiet_mode?
 
