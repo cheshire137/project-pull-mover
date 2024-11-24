@@ -10,9 +10,13 @@ module ProjectPullMover
 
     include Utils
 
-    sig { params(file: String).void }
-    def initialize(file)
+    sig { returns Integer }
+    attr_reader :proj_items_limit
+
+    sig { params(file: String, proj_items_limit: Integer).void }
+    def initialize(file:, proj_items_limit:)
       @options = {}
+      @proj_items_limit = proj_items_limit
       @option_parser = OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,

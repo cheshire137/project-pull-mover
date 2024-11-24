@@ -6,6 +6,7 @@ require "sorbet-runtime"
 module ProjectPullMover
 end
 
+require_relative "project_pull_mover/gh_cli"
 require_relative "project_pull_mover/options"
 require_relative "project_pull_mover/project"
 require_relative "project_pull_mover/pull_request"
