@@ -12,34 +12,41 @@ module ProjectPullMover
 
     include Utils
 
+    class ErrorDetails
+      extend T::Sig
+
+      sig { params(err: T.any(StandardError, String)).void }
+      def initialize(err)
+        @error_message = err.is_a?(String) ? err : err.message
+      end
+
+      sig { returns String }
+      attr_reader :error_message
+
+      sig { returns T::Boolean }
+      def success?
+        false
+      end
+    end
+
     class Result
       extend T::Sig
 
-      sig { params(pull_requests: T::Array[PullRequest]).returns(Result) }
-      def self.success(pull_requests:)
-        new(pull_requests: pull_requests)
-      end
-
-      sig { params(err: T.any(StandardError, String)).returns(Result) }
-      def self.error(err)
-        new(error: err.is_a?(String) ? err : err.message)
-      end
-
-      sig { params(error: T.nilable(String), pull_requests: T::Array[PullRequest]).void }
-      def initialize(error: nil, pull_requests: [])
-        @error = error
+      sig { params(project: Project, pull_requests: T::Array[PullRequest]).void }
+      def initialize(project:, pull_requests: [])
+        @project = project
         @pull_requests = pull_requests
       end
-
-      sig { returns T.nilable(String) }
-      attr_reader :error
 
       sig { returns T::Array[PullRequest] }
       attr_reader :pull_requests
 
+      sig { returns Project }
+      attr_reader :project
+
       sig { returns T::Boolean }
       def success?
-        @error.nil?
+        true
       end
     end
 
@@ -50,7 +57,7 @@ module ProjectPullMover
       @project = T.let(Project.new(options), Project)
     end
 
-    sig { returns Result }
+    sig { returns T.any(Result, ErrorDetails) }
     def load
       unless quiet_mode?
         output_loading_message("Looking up items in project #{@project.number} owned by @#{@project.owner}...")
@@ -59,10 +66,10 @@ module ProjectPullMover
       project_items = begin
         @gh_cli.get_project_items
       rescue GhCli::NoJsonError => err
-        return Result.error(err)
+        return ErrorDetails.new(err)
       end
 
-      return Result.success(pull_requests: []) if project_items.size < 1
+      return Result.new(project: @project, pull_requests: []) if project_items.size < 1
 
       unless quiet_mode?
         pull_units = project_items.size == 1 ? "pull request" : "pull requests"
@@ -72,7 +79,7 @@ module ProjectPullMover
       author_pull_numbers_by_repo_nwo = begin
         @gh_cli.author_pull_numbers_by_repo_nwo
       rescue GhCli::NoJsonError => err
-        return Result.error(err)
+        return ErrorDetails.new(err)
       end
 
       if author_pull_numbers_by_repo_nwo
@@ -133,7 +140,7 @@ module ProjectPullMover
         new_graphql_data = begin
           @gh_cli.make_graphql_api_query(graphql_query)
         rescue GhCli::GraphqlApiError => api_err
-          return Result.error(api_err)
+          return ErrorDetails.new(api_err)
         end
 
         graphql_data.merge!(new_graphql_data)
@@ -157,7 +164,7 @@ module ProjectPullMover
 
       output_success_message("Loaded extra pull request info from the API") unless quiet_mode?
 
-      Result.success(pull_requests: project_pulls)
+      Result.new(project: @project, pull_requests: project_pulls)
     end
 
     private
