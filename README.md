@@ -124,6 +124,12 @@ flow. Once complete, you can run `gh auth token` to get your GitHub API token.
 
 ## How to develop
 
+### Building
+
+```sh
+bundle install
+```
+
 ### Creating a tag
 
 Update `VERSION` in [version.rb](./lib/project_pull_mover/version.rb).

@@ -1,0 +1,21 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    sorbet (0.5.11663)
+      sorbet-static (= 0.5.11663)
+    sorbet-runtime (0.5.11663)
+    sorbet-static (0.5.11663-aarch64-linux)
+    sorbet-static (0.5.11663-universal-darwin)
+    sorbet-static (0.5.11663-x86_64-linux)
+
+PLATFORMS
+  aarch64-linux
+  universal-darwin
+  x86_64-linux
+
+DEPENDENCIES
+  sorbet (~> 0.5.11663)
+  sorbet-runtime (~> 0.5.11663)
+
+BUNDLED WITH
+   2.5.6
