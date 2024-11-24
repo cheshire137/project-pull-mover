@@ -121,3 +121,30 @@ If you have problems with `gh` not being authenticated, try a cron line like:
 
 To get the token to use, try running `gh auth refresh -s project` first and go through the interactive authentication
 flow. Once complete, you can run `gh auth token` to get your GitHub API token.
+
+## How to develop
+
+### Creating a tag
+
+Update `VERSION` in [version.rb](./lib/project_pull_mover/version.rb).
+
+```sh
+git tag v0.0.x main # use the same version as in `VERSION`
+git push origin tag v0.0.x
+```
+
+This will trigger a workflow that builds the gem and creates a new release.
+
+### Building the gem
+
+```sh
+gem build project_pull_mover.gemspec
+```
+
+This will create a file like project_pull_mover-0.0.1.gem which you can then install:
+
+```sh
+gem install project_pull_mover-0.0.1.gem
+```
+
+`project_pull_mover` should then be an executable available to you.

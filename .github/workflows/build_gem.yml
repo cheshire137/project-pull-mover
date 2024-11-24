@@ -1,0 +1,36 @@
+name: Build gem
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-gem:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: ruby
+
+      - name: Build gem
+        run: gem build project_pull_mover.gemspec -o project_pull_mover.gem
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: project_pull_mover.gem
+          tag_name: ${{ github.event.inputs.release_tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
