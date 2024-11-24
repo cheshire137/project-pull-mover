@@ -37,27 +37,20 @@ unless quiet_mode
   output_success_message("Found #{project_items.size} #{pull_units} in project")
 end
 
-if options.author
-  output_info_message("Looking up open pull requests by @#{options.author} in project...") unless quiet_mode
+author_pull_numbers_by_repo_nwo = begin
+  gh_cli.author_pull_numbers_by_repo_nwo
+rescue ProjectPullMover::GhCli::NoJsonError => err
+  output_error_message(err.message)
+  exit 1
+end
 
-  pulls_by_author_in_project = begin
-    gh_cli.get_pulls_by_author_in_project
-  rescue ProjectPullMover::GhCli::NoJsonError => err
-    output_error_message(err.message)
-    exit 1
-  end
-
-  pull_numbers_by_repo_nwo = pulls_by_author_in_project.each_with_object({}) do |data, hash|
-    repo_nwo = data["repository"]["nameWithOwner"]
-    hash[repo_nwo] ||= []
-    hash[repo_nwo] << data["number"]
-  end
-
+if author_pull_numbers_by_repo_nwo
   total_project_items_before = project_items.size
   project_items = project_items.select do |item|
     item_repo_nwo = item["content"]["repository"]
     item_pr_number = item["content"]["number"]
-    pull_numbers_by_repo_nwo.key?(item_repo_nwo) && pull_numbers_by_repo_nwo[item_repo_nwo].include?(item_pr_number)
+    author_pull_numbers_by_repo_nwo.key?(item_repo_nwo) &&
+      author_pull_numbers_by_repo_nwo[item_repo_nwo].include?(item_pr_number)
   end
   total_project_items_after = project_items.size
 

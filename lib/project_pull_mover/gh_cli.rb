@@ -44,6 +44,26 @@ module ProjectPullMover
     end
 
     sig { returns T.nilable(T::Array[T.untyped]) }
+    def pulls_by_author_in_project
+      return @pulls_by_author_in_project if defined?(@pulls_by_author_in_project)
+      @pulls_by_author_in_project = get_pulls_by_author_in_project
+    end
+
+    sig { returns T.nilable(T::Hash[String, Integer]) }
+    def author_pull_numbers_by_repo_nwo
+      pulls_by_author_in_project = self.pulls_by_author_in_project
+      return unless pulls_by_author_in_project
+
+      pulls_by_author_in_project.each_with_object({}) do |data, hash|
+        repo_nwo = data["repository"]["nameWithOwner"]
+        hash[repo_nwo] ||= []
+        hash[repo_nwo] << data["number"]
+      end
+    end
+
+    private
+
+    sig { returns T.nilable(T::Array[T.untyped]) }
     def get_pulls_by_author_in_project
       return unless @options.author
 
@@ -59,8 +79,6 @@ module ProjectPullMover
 
       JSON.parse(json)
     end
-
-    private
 
     sig { returns(T::Boolean) }
     def quiet_mode?
