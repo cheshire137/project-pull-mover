@@ -2,10 +2,22 @@ name: Run tests
 
 on:
   push:
+    branches:
+      - 'main'
   pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.rb"
+      - Gemfile
+      - Gemfile.lock
+      - .github/workflows/run_tests.yml
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   run-tests:
@@ -24,3 +36,6 @@ jobs:
 
       - name: Check types
         run: bundle exec srb tc
+
+      - name: Run tests
+        run: bundle exec rake test
