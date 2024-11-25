@@ -15,12 +15,21 @@ module ProjectPullMover
     sig { returns Integer }
     attr_reader :pull_fields_per_query
 
-    sig { params(file: String, proj_items_limit: Integer, pull_fields_per_query: Integer, logger: Logger).void }
-    def initialize(file:, proj_items_limit:, pull_fields_per_query:, logger:)
+    sig do
+      params(
+        file: String,
+        logger: Logger,
+        proj_items_limit: Integer,
+        pull_fields_per_query: Integer,
+        argv: Array
+      ).void
+    end
+    def initialize(file:, logger:, proj_items_limit: 100, pull_fields_per_query: 5, argv: ARGV)
       @options = T.let({}, T::Hash[Symbol, T.untyped])
       @proj_items_limit = proj_items_limit
       @pull_fields_per_query = pull_fields_per_query
       @logger = logger
+      @argv = argv
       @option_parser = T.let(OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,
@@ -54,7 +63,7 @@ module ProjectPullMover
 
     sig { returns(T::Boolean) }
     def parse
-      @option_parser.parse!(into: @options)
+      @option_parser.parse!(@argv, into: @options)
       valid?
     end
 
@@ -138,6 +147,7 @@ module ProjectPullMover
       @options[:"failing-test-label"]
     end
 
+    sig { returns String }
     def to_s
       @option_parser.to_s
     end
