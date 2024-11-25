@@ -70,7 +70,7 @@ module ProjectPullMover
     sig { void }
     def check_auth_status
       auth_status_result = `#{gh_path} auth status`
-      @logger.info(auth_status_result.force_encoding("UTF-8"))
+      @logger.info(auth_status_result.dup.force_encoding("UTF-8"))
     end
 
     sig { returns T::Array[T.untyped] }
