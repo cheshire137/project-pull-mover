@@ -44,9 +44,9 @@ module ProjectPullMover
       `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_nwo}"`
     end
 
-    sig { params(number: Integer, repo_nwo: String).returns(T.nilable(String)) }
-    def mark_pull_request_as_draft(number:, repo_nwo:)
-      @logger.loading("Marking #{to_s} as a draft...") unless quiet_mode?
+    sig { params(number: Integer, repo_nwo: String, pull_name: String).returns(T.nilable(String)) }
+    def mark_pull_request_as_draft(number:, repo_nwo:, pull_name:)
+      @logger.loading("Marking #{pull_name} as a draft...") unless quiet_mode?
       `#{gh_path} pr ready --undo #{number} --repo "#{repo_nwo}"`
     end
 

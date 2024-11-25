@@ -329,7 +329,7 @@ module ProjectPullMover
     end
 
     def mark_as_draft
-      @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner)
+      @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner, pull_name: to_s)
     end
 
     def can_mark_as_draft?
