@@ -1,4 +1,4 @@
-name: Run tests
+name: Run typechecker
 
 on:
   push:
@@ -8,9 +8,10 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - "**.rb"
+      - "**.rbi"
       - Gemfile
       - Gemfile.lock
-      - .github/workflows/run_tests.yml
+      - .github/workflows/check_types.yml
 
 permissions:
   contents: read
@@ -20,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-tests:
+  check-types:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,5 +35,5 @@ jobs:
       - name: Install dependencies
         run: bundle install
 
-      - name: Run tests
-        run: bundle exec rake test
+      - name: Check types
+        run: bundle exec srb tc
