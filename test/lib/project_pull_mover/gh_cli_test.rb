@@ -166,6 +166,17 @@ module ProjectPullMover
 
         assert_equal expected_result, result
       end
+
+      it "returns nil when author is not set" do
+        GhCli.any_instance.expects(:`).never
+        argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
+          "MyInProgressID", "-h", "gh"]
+        options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger)
+        options.parse
+        gh_cli = GhCli.new(options: options, logger: @logger)
+
+        assert_nil gh_cli.pulls_by_author_in_project
+      end
     end
 
     describe "#author_pull_numbers_by_repo_nwo" do
@@ -185,6 +196,17 @@ module ProjectPullMover
 
         assert_equal 2, result.size
         assert_equal({repo_nwo1 => [1, 2], repo_nwo2 => [123]}, result)
+      end
+
+      it "returns nil when no author is set" do
+        GhCli.any_instance.expects(:`).never
+        argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
+          "MyInProgressID", "-h", "gh"]
+        options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger)
+        options.parse
+        gh_cli = GhCli.new(options: options, logger: @logger)
+
+        assert_nil gh_cli.author_pull_numbers_by_repo_nwo
       end
     end
 
