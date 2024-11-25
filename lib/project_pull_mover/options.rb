@@ -17,11 +17,11 @@ module ProjectPullMover
 
     sig { params(file: String, proj_items_limit: Integer, pull_fields_per_query: Integer, logger: Logger).void }
     def initialize(file:, proj_items_limit:, pull_fields_per_query:, logger:)
-      @options = {}
+      @options = T.let({}, T::Hash[Symbol, T.untyped])
       @proj_items_limit = proj_items_limit
       @pull_fields_per_query = pull_fields_per_query
       @logger = logger
-      @option_parser = OptionParser.new do |opts|
+      @option_parser = T.let(OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,
           "Project number (required), e.g., 123 for https://github.com/orgs/someorg/projects/123")
@@ -49,7 +49,7 @@ module ProjectPullMover
         opts.on("-b BUILDS", "--builds-to-rerun", Array, "Case-insensitive comma-separated list of build names or " \
           "partial build names that should be re-run when they are failing and the pull request is moved them back " \
           "to In Progress status")
-      end
+      end, OptionParser)
     end
 
     sig { returns(T::Boolean) }
