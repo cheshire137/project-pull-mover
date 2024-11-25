@@ -239,6 +239,7 @@ module ProjectPullMover
       return unless option_id
 
       @gh_cli.set_project_item_status(
+        pull_name: to_s,
         option_id: option_id,
         project_item_id: project_item_id,
         project_global_id: project_global_id,
@@ -253,6 +254,7 @@ module ProjectPullMover
       return unless option_id
 
       @gh_cli.set_project_item_status(
+        pull_name: to_s,
         option_id: option_id,
         project_item_id: project_item_id,
         project_global_id: project_global_id,
@@ -267,6 +269,7 @@ module ProjectPullMover
       return unless option_id
 
       @gh_cli.set_project_item_status(
+        pull_name: to_s,
         option_id: option_id,
         project_item_id: project_item_id,
         project_global_id: project_global_id,
@@ -281,6 +284,7 @@ module ProjectPullMover
       return unless option_id
 
       @gh_cli.set_project_item_status(
+        pull_name: to_s,
         option_id: option_id,
         project_item_id: project_item_id,
         project_global_id: project_global_id,
@@ -295,6 +299,7 @@ module ProjectPullMover
       return unless option_id
 
       @gh_cli.set_project_item_status(
+        pull_name: to_s,
         option_id: option_id,
         project_item_id: project_item_id,
         project_global_id: project_global_id,

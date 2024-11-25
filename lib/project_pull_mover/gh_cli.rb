@@ -57,11 +57,12 @@ module ProjectPullMover
         project_global_id: String,
         status_field_id: String,
         old_option_name: String,
-        new_option_name: String
+        new_option_name: String,
+        pull_name: String
       ).returns(T.nilable(String))
     end
-    def set_project_item_status(option_id:, project_item_id:, project_global_id:, status_field_id:, old_option_name:, new_option_name:)
-      @logger.loading("Moving #{to_s} out of '#{old_option_name}' column to " \
+    def set_project_item_status(option_id:, project_item_id:, project_global_id:, status_field_id:, old_option_name:, new_option_name:, pull_name:)
+      @logger.loading("Moving #{pull_name} out of '#{old_option_name}' column to " \
         "'#{new_option_name}'...") unless quiet_mode?
       `#{gh_path} project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
     end
