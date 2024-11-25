@@ -11,6 +11,35 @@ module ProjectPullMover
       @logger = Logger.new(out_stream: @out_stream, err_stream: @err_stream)
     end
 
+    describe ".parse" do
+      it "returns new Options instance when valid" do
+        argv = ["-p", "123", "-o", "someorg", "-t", "organization", "-s", "Status", "-i", "abc123"]
+
+        options = Options.parse(file: "project_pull_mover.rb", logger: @logger, argv: argv)
+
+        assert_instance_of Options, options
+        assert_equal 123, options.project_number
+        assert_equal "someorg", options.project_owner
+        assert_equal "organization", options.project_owner_type
+        assert_equal "Status", options.status_field
+        assert_equal "abc123", options.in_progress_option_id
+        assert_equal "", @out_stream.string
+        assert_equal "", @err_stream.string
+      end
+
+      it "raises exception when arguments are invalid" do
+        argv = ["-p", "123", "-o", "someorg", "-t", "repository", "-s", "Status", "-i", "abc123"]
+
+        error = assert_raises(Options::InvalidOptionsError) do
+          Options.parse(file: "project_pull_mover.rb", logger: @logger, argv: argv)
+        end
+
+        assert_equal "Error: invalid project owner type", error.message
+        assert_match(/Usage: project_pull_mover.rb /, @out_stream.string)
+        assert_match(/Error: invalid project owner type/, @err_stream.string)
+        end
+    end
+
     it "parses required arguments" do
       argv = ["-p", "123", "-o", "someorg", "-t", "organization", "-s", "Status", "-i", "abc123"]
       options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger)

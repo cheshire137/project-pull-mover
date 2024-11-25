@@ -9,11 +9,32 @@ module ProjectPullMover
   class Options
     extend T::Sig
 
+    class InvalidOptionsError < StandardError; end
+
+    sig do
+      params(
+        file: String,
+        logger: Logger,
+        proj_items_limit: Integer,
+        pull_fields_per_query: Integer,
+        argv: Array
+      ).returns(Options)
+    end
+    def self.parse(file:, logger:, proj_items_limit: 100, pull_fields_per_query: 5, argv: ARGV)
+      options = new(file: file, logger: logger, proj_items_limit: proj_items_limit,
+        pull_fields_per_query: pull_fields_per_query, argv: argv)
+      raise InvalidOptionsError, options.error_message unless options.parse
+      options
+    end
+
     sig { returns Integer }
     attr_reader :proj_items_limit
 
     sig { returns Integer }
     attr_reader :pull_fields_per_query
+
+    sig { returns T.nilable(String) }
+    attr_reader :error_message
 
     sig do
       params(
@@ -30,6 +51,7 @@ module ProjectPullMover
       @pull_fields_per_query = pull_fields_per_query
       @logger = logger
       @argv = argv
+      @error_message = T.let(nil, T.nilable(String))
       @option_parser = T.let(OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,
@@ -164,19 +186,22 @@ module ProjectPullMover
     sig { returns T::Boolean }
     def valid?
       unless project_number && project_owner && status_field
-        @logger.error("Error: missing required options")
+        @error_message = "Error: missing required options"
+        @logger.error(@error_message)
         @logger.info(to_s)
         return false
       end
 
       unless %w(user organization).include?(project_owner_type)
-        @logger.error("Error: invalid project owner type")
+        @error_message = "Error: invalid project owner type"
+        @logger.error(@error_message)
         @logger.info(to_s)
         return false
       end
 
       unless any_option_ids?
-        @logger.error("Error: you must specify at least one option ID for the status field")
+        @error_message = "Error: you must specify at least one option ID for the status field"
+        @logger.error(@error_message)
         @logger.info(to_s)
         return false
       end
