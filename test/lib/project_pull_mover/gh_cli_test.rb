@@ -187,5 +187,38 @@ module ProjectPullMover
         assert_equal({repo_nwo1 => [1, 2], repo_nwo2 => [123]}, result)
       end
     end
+
+    describe "#make_graphql_api_query" do
+      it "runs gh command and handles successful response" do
+        data = {"foo" => "bar"}
+        cmd_output = {"data" => data}.to_json
+        graphql_query = "some query"
+        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+
+        result = @gh_cli.make_graphql_api_query(graphql_query)
+
+        assert_equal data, result
+      end
+
+      it "runs gh command and handles error response with 'errors' field" do
+        cmd_output = {"errors" => [{"message" => "o noes"}, {"message" => "it failed"}]}.to_json
+        graphql_query = "some query"
+        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+
+        error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
+
+        assert_equal "Error: no data returned from the GraphQL API: o noes\nit failed", error.message
+      end
+
+      it "runs gh command and handles error response without 'errors' field" do
+        cmd_output = {"foo" => "bar"}.to_json
+        graphql_query = "some query"
+        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+
+        error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
+
+        assert_equal "Error: no data returned from the GraphQL API: {\"foo\"=>\"bar\"}", error.message
+      end
+    end
   end
 end
