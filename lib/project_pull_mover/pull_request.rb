@@ -314,9 +314,8 @@ module ProjectPullMover
         pull_name: to_s)
     end
 
-    def rerun_failed_run(run_id:)
-      @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name_for_run_id(run_id),
-        repo_nwo: repo_name_with_owner)
+    def rerun_failed_run(run_id:, build_name:)
+      @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name, repo_nwo: repo_name_with_owner)
     end
 
     def rerun_failing_required_builds
@@ -324,9 +323,7 @@ module ProjectPullMover
 
       build_names_for_rerun.each do |build_name|
         run_id = run_id_for_build_name(build_name)
-        if run_id
-          rerun_failed_run(run_id: run_id)
-        end
+        rerun_failed_run(run_id: run_id, build_name: build_name) if run_id
       end
     end
 
