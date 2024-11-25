@@ -12,8 +12,9 @@ module ProjectPullMover
       @project_number = 123
       @project_owner = "someUser"
       @proj_items_limit = 123
+      @author = "someAuthor"
       argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
-        "MyInProgressID", "-h", "gh"]
+        "MyInProgressID", "-h", "gh", "-u", @author]
       @options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger,
         proj_items_limit: @proj_items_limit)
       @options.parse
@@ -141,6 +142,29 @@ module ProjectPullMover
         assert_equal "", @err_stream.string
         assert_equal "#{Logger::INFO_PREFIX}Found 1 item in project\n#{Logger::SUCCESS_PREFIX}No pull requests " \
           "found in project #{@project_number} by @#{@project_owner}", @out_stream.string.strip
+      end
+    end
+
+    describe "#pulls_by_author_in_project" do
+      it "runs gh command on first call when author is set and memoizes the result" do
+        expected_result = ["some", "result"]
+        cmd_output = expected_result.to_json
+        GhCli.any_instance.expects(:`).once.with("gh search prs --author \"#{@author}\" --project " \
+          "\"#{@project_owner}/#{@project_number}\" --json \"number,repository\" --limit #{@proj_items_limit} " \
+          "--state open").returns(cmd_output)
+
+        result = @gh_cli.pulls_by_author_in_project
+
+        assert_equal expected_result, result
+        assert_equal "", @err_stream.string
+        assert_equal "#{Logger::INFO_PREFIX}Looking up open pull requests by @#{@author} in project...",
+          @out_stream.string.strip
+
+        GhCli.any_instance.expects(:`).never
+
+        result = @gh_cli.pulls_by_author_in_project
+
+        assert_equal expected_result, result
       end
     end
   end
