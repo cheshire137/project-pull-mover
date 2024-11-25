@@ -35,9 +35,12 @@ module ProjectPullMover
       `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --remove-label "#{label_name}"`
     end
 
-    sig { params(run_id: T.untyped, repo_nwo: String, build_name: T.nilable(String)).returns(T.nilable(String)) }
-    def rerun_failed_run(run_id:, repo_nwo:, build_name: nil)
-      @logger.loading("Rerunning failed run #{build_name || run_id} for #{to_s}...") unless quiet_mode?
+    sig do
+      params(run_id: T.untyped, repo_nwo: String, pull_name: String, build_name: T.nilable(String))
+        .returns(T.nilable(String))
+    end
+    def rerun_failed_run(run_id:, repo_nwo:, pull_name:, build_name: nil)
+      @logger.loading("Rerunning failed run #{build_name || run_id} for #{pull_name}...") unless quiet_mode?
       `#{gh_path} run rerun #{run_id} --failed --repo "#{repo_nwo}"`
     end
 

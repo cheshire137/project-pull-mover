@@ -315,7 +315,8 @@ module ProjectPullMover
     end
 
     def rerun_failed_run(run_id:, build_name:)
-      @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name, repo_nwo: repo_name_with_owner)
+      @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name, repo_nwo: repo_name_with_owner,
+        pull_name: to_s)
     end
 
     def rerun_failing_required_builds
