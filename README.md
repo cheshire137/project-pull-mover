@@ -144,13 +144,13 @@ bundle install
 Check types:
 
 ```sh
-srb tc
+bundle exec srb tc
 ```
 
 Run tests:
 
 ```sh
-rake test
+bundle exec rake test
 ```
 
 Run a single test file with a command like `ruby -Ilib:test PATH_TO_TEST`, for example:

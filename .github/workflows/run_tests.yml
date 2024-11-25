@@ -38,4 +38,4 @@ jobs:
         run: bundle exec srb tc
 
       - name: Run tests
-        run: rake test
+        run: bundle exec rake test
