@@ -167,5 +167,25 @@ module ProjectPullMover
         assert_equal expected_result, result
       end
     end
+
+    describe "#author_pull_numbers_by_repo_nwo" do
+      it "runs gh command when author is set" do
+        repo_nwo1 = "foo/bar"
+        repo_nwo2 = "baz/qux"
+        cmd_output = [
+          {"repository" => {"nameWithOwner" => repo_nwo1}, "number" => 1},
+          {"repository" => {"nameWithOwner" => repo_nwo2}, "number" => 123},
+          {"repository" => {"nameWithOwner" => repo_nwo1}, "number" => 2},
+        ].to_json
+        GhCli.any_instance.expects(:`).once.with("gh search prs --author \"#{@author}\" --project " \
+          "\"#{@project_owner}/#{@project_number}\" --json \"number,repository\" --limit #{@proj_items_limit} " \
+          "--state open").returns(cmd_output)
+
+        result = @gh_cli.author_pull_numbers_by_repo_nwo
+
+        assert_equal 2, result.size
+        assert_equal({repo_nwo1 => [1, 2], repo_nwo2 => [123]}, result)
+      end
+    end
   end
 end
