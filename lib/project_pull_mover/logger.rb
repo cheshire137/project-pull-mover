@@ -6,7 +6,12 @@ module ProjectPullMover
   class Logger
     extend T::Sig
 
-    sig { params(out_stream: IO, err_stream: IO).void }
+    ERROR_PREFIX = "❌ "
+    LOADING_PREFIX = "⏳ "
+    SUCCESS_PREFIX = "✅ "
+    INFO_PREFIX = "ℹ️ "
+
+    sig { params(out_stream: T.any(IO, StringIO), err_stream: T.any(IO, StringIO)).void }
     def initialize(out_stream:, err_stream:)
       @out_stream = out_stream
       @err_stream = err_stream
@@ -14,22 +19,22 @@ module ProjectPullMover
 
     sig { params(content: String).void }
     def error(content)
-      @err_stream.puts "❌ #{content}".force_encoding("UTF-8")
+      @err_stream.puts "#{ERROR_PREFIX}#{content}".force_encoding("UTF-8")
     end
 
     sig { params(content: String).void }
     def loading(content)
-      @out_stream.puts "⏳ #{content}".force_encoding("UTF-8")
+      @out_stream.puts "#{LOADING_PREFIX}#{content}".force_encoding("UTF-8")
     end
 
     sig { params(content: String).void }
     def success(content)
-      @out_stream.puts "✅ #{content}".force_encoding("UTF-8")
+      @out_stream.puts "#{SUCCESS_PREFIX}#{content}".force_encoding("UTF-8")
     end
 
     sig { params(content: String).void }
     def info(content)
-      @out_stream.puts "ℹ️ #{content}".force_encoding("UTF-8")
+      @out_stream.puts "#{INFO_PREFIX}#{content}".force_encoding("UTF-8")
     end
   end
 end
