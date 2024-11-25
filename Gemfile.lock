@@ -3,6 +3,8 @@ GEM
   specs:
     erubi (1.13.0)
     minitest (5.25.2)
+    mocha (2.6.0)
+      ruby2_keywords (>= 0.0.5)
     netrc (0.11.0)
     parallel (1.26.3)
     prism (1.2.0)
@@ -10,6 +12,7 @@ GEM
     rbi (0.2.1)
       prism (~> 1.0)
       sorbet-runtime (>= 0.5.9204)
+    ruby2_keywords (0.0.5)
     sorbet (0.5.11663)
       sorbet-static (= 0.5.11663)
     sorbet-runtime (0.5.11663)
@@ -46,6 +49,7 @@ PLATFORMS
 
 DEPENDENCIES
   minitest (~> 5.25, >= 5.25.1)
+  mocha (~> 2.6.0)
   rake (~> 13.2.1)
   sorbet (~> 0.5.11663)
   sorbet-runtime (~> 0.5.11663)
