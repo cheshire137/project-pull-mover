@@ -4,9 +4,11 @@
 require_relative "../lib/project_pull_mover"
 
 logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
-options = ProjectPullMover::Options.new(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7,
-  logger: logger)
-exit 1 unless options.parse
+options = begin
+  ProjectPullMover::Options.parse(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7, logger: logger)
+rescue ProjectPullMover::Options::InvalidOptionsError
+  exit 1
+end
 
 gh_cli = ProjectPullMover::GhCli.new(options: options, logger: logger)
 gh_cli.check_auth_status unless options.quiet_mode?

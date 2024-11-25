@@ -15,9 +15,8 @@ module ProjectPullMover
       @author = "someAuthor"
       argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
         "MyInProgressID", "-h", "gh", "-u", @author]
-      @options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger,
+      @options = Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger,
         proj_items_limit: @proj_items_limit)
-      @options.parse
       @gh_cli = GhCli.new(options: @options, logger: @logger)
     end
 
@@ -171,8 +170,7 @@ module ProjectPullMover
         GhCli.any_instance.expects(:`).never
         argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
           "MyInProgressID", "-h", "gh"]
-        options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger)
-        options.parse
+        options = Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger)
         gh_cli = GhCli.new(options: options, logger: @logger)
 
         assert_nil gh_cli.pulls_by_author_in_project
@@ -202,8 +200,7 @@ module ProjectPullMover
         GhCli.any_instance.expects(:`).never
         argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
           "MyInProgressID", "-h", "gh"]
-        options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger)
-        options.parse
+        options = Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger)
         gh_cli = GhCli.new(options: options, logger: @logger)
 
         assert_nil gh_cli.author_pull_numbers_by_repo_nwo
