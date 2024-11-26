@@ -360,6 +360,18 @@ module ProjectPullMover
         assert_equal @project_number, result["project"]["number"]
       end
 
+      it "returns nil when specified project is not found in pull request project items" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"number" => @project_number - 1}, "id" => "someItemId"},
+          {"project" => {"number" => @project_number + 1}, "id" => "otherItemId"},
+          {"project" => {"foo" => "bar"}, "id" => "randomvalue"},
+          {"id" => "noProjectDetailsHere"},
+        ]}}})
+
+        assert_nil pull.project_item
+      end
+
       it "returns nil when GraphQL data has not been set" do
         pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
         assert_nil pull.project_item
@@ -369,6 +381,31 @@ module ProjectPullMover
         pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
         pull.set_graphql_data({"pullRequest" => {"isDraft" => true}})
         assert_nil pull.project_item
+      end
+    end
+
+    describe "#project_item_id" do
+      it "returns ID for the pull request's project item for the specified project when known" do
+        project_item_id = "targetItemId"
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"number" => @project_number}, "id" => project_item_id},
+        ]}}})
+
+        assert_equal project_item_id, pull.project_item_id
+      end
+
+      it "returns nil when GraphQL data has not been set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.project_item_id
+      end
+
+      it "returns nil when project item for specified project is not found" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"number" => @project_number + 1}, "id" => "someOtherItemId"},
+        ]}}})
+        assert_nil pull.project_item_id
       end
     end
   end
