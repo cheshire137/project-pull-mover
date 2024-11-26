@@ -175,8 +175,16 @@ module ProjectPullMover
     def failing_required_check_suites?
       return false unless last_commit
 
-      last_commit["checkSuites"]["nodes"].any? do |check_suite|
-        check_suite["checkRuns"]["nodes"].any? do |check_run|
+      check_suites = last_commit["checkSuites"]
+      return false unless check_suites
+
+      check_suite_nodes = check_suites["nodes"] || []
+      check_suite_nodes.any? do |check_suite|
+        check_runs = check_suite["checkRuns"]
+        next false unless check_runs
+
+        check_run_nodes = check_runs["nodes"] || []
+        check_run_nodes.any? do |check_run|
           check_run["isRequired"]
         end
       end
