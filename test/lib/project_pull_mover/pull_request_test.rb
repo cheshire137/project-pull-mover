@@ -82,5 +82,20 @@ module ProjectPullMover
         refute_predicate pull, :has_failing_test_label?
       end
     end
+
+    describe "#labels" do
+      it "returns labels from initial data" do
+        labels = %w(whee woo)
+        initial_data = {"labels" => labels}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+
+        assert_equal labels, pull.labels
+      end
+
+      it "returns an empty array when labels are not present in initial data" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_empty pull.labels
+      end
+    end
   end
 end
