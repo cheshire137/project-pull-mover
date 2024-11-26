@@ -260,5 +260,42 @@ module ProjectPullMover
         refute_predicate pull, :failing_required_check_suites?
       end
     end
+
+    describe "#failing_required_statuses?" do
+      it "returns true when a required status is failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "status" => {"contexts" => [{"isRequired" => true, "state" => "FAILURE"}]},
+        }}]}}})
+        assert_predicate pull, :failing_required_statuses?
+      end
+
+      it "returns false when an optional status is failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "status" => {"contexts" => [{"isRequired" => false, "state" => "FAILURE"}]},
+        }}]}}})
+        refute_predicate pull, :failing_required_statuses?
+      end
+
+      it "returns false when all required statuses are not failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "status" => {"contexts" => [{"isRequired" => true, "state" => "SUCCESS"}]},
+        }}]}}})
+        refute_predicate pull, :failing_required_statuses?
+      end
+
+      it "returns false when no last commit is known" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => []}}})
+        refute_predicate pull, :failing_required_statuses?
+      end
+
+      it "returns false when GraphQL data has not been set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        refute_predicate pull, :failing_required_statuses?
+      end
+    end
   end
 end
