@@ -205,8 +205,14 @@ module ProjectPullMover
 
     sig { returns T.nilable(Hash) }
     def project_item
-      @project_item ||= @gql_data["projectItems"]["nodes"].detect do |item|
-        item["project"]["number"] == @project.number
+      return @project_item if defined?(@project_item)
+      project_items = @gql_data["projectItems"]
+      @project_item = if project_items
+        project_item_nodes = project_items["nodes"] || []
+        project_item_nodes.detect do |item|
+          item_project = item["project"]
+          item_project && item_project["number"] == @project.number
+        end
       end
     end
 
