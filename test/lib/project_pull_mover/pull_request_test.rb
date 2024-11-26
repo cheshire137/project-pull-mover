@@ -135,5 +135,24 @@ module ProjectPullMover
         assert_nil pull.repo_owner
       end
     end
+
+    describe "#repo_name" do
+      it "returns name of pull request repository" do
+        initial_data = {"content" => {"repository" => "someone/somerepo"}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "somerepo", pull.repo_name
+      end
+
+      it "returns nil when repository not given in initial data" do
+        initial_data = {"content" => {"foo" => "bar"}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.repo_name
+      end
+
+      it "returns nil when content not given in initial data" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.repo_name
+      end
+    end
   end
 end
