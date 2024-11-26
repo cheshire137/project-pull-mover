@@ -408,5 +408,38 @@ module ProjectPullMover
         assert_nil pull.project_item_id
       end
     end
+
+    describe "#project_global_id" do
+      it "returns GraphQL ID for project when known" do
+        global_id = "someGlobalProjectId"
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"id" => global_id, "number" => @project_number}},
+        ]}}})
+
+        assert_equal global_id, pull.project_global_id
+      end
+
+      it "returns nil when field is not present on project" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"foo" => "bar", "number" => @project_number}},
+        ]}}})
+        assert_nil pull.project_global_id
+      end
+
+      it "returns nil when project item for specified project is not found" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"number" => @project_number + 1}, "id" => "someOtherItemId"},
+        ]}}})
+        assert_nil pull.project_global_id
+      end
+
+      it "returns nil when GraphQL data has not been set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.project_global_id
+      end
+    end
   end
 end
