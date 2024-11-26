@@ -224,6 +224,44 @@ module ProjectPullMover
       end
     end
 
+    describe "#failing_required_builds?" do
+      it "returns true when a required check suite is failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "checkSuites" => {"nodes" => [{"checkRuns" => {"nodes" => [{"isRequired" => true}]}}]},
+        }}]}}})
+        assert_predicate pull, :failing_required_builds?
+      end
+
+      it "returns true when a required status is failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "status" => {"contexts" => [{"isRequired" => true, "state" => "FAILURE"}]},
+        }}]}}})
+        assert_predicate pull, :failing_required_builds?
+      end
+
+      it "returns false when last commit check suites have no check runs and status has no contexts" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "checkSuites" => {"nodes" => [{"checkRuns" => {"nodes" => []}}]},
+          "status" => {"contexts" => []},
+        }}]}}})
+        refute_predicate pull, :failing_required_builds?
+      end
+
+      it "returns false when no last commit is known" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => []}}})
+        refute_predicate pull, :failing_required_builds?
+      end
+
+      it "returns false when GraphQL data has not been set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        refute_predicate pull, :failing_required_builds?
+      end
+    end
+
     describe "#failing_required_check_suites?" do
       it "returns true when a required check suite is failing on the last commit" do
         pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
@@ -282,6 +320,14 @@ module ProjectPullMover
         pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
         pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
           "status" => {"contexts" => [{"isRequired" => true, "state" => "SUCCESS"}]},
+        }}]}}})
+        refute_predicate pull, :failing_required_statuses?
+      end
+
+      it "returns false when last commit status has no contexts" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "status" => {"contexts" => []},
         }}]}}})
         refute_predicate pull, :failing_required_statuses?
       end
