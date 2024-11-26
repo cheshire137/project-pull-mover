@@ -30,9 +30,11 @@ module ProjectPullMover
       @gql_data = repo_and_pull_data["pullRequest"] || {}
     end
 
-    sig { returns Integer }
+    sig { returns T.nilable(Integer) }
     def number
-      @number ||= @data["content"]["number"]
+      return @number if defined?(@number)
+      content = @data["content"]
+      @number = content["number"] if content
     end
 
     sig { returns T.nilable(T::Boolean) }
@@ -338,12 +340,18 @@ module ProjectPullMover
 
     sig { params(label_name: String).returns(T.nilable(String)) }
     def apply_label(label_name:)
+      number = self.number
+      raise "Unable to apply label to #{to_s}, missing required data" unless number
+
       @gh_cli.apply_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
     end
 
     sig { params(label_name: String).returns(T.nilable(String)) }
     def remove_label(label_name:)
+      number = self.number
+      raise "Unable to remove label from #{to_s}, missing required data" unless number
+
       @gh_cli.remove_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
     end
@@ -365,6 +373,9 @@ module ProjectPullMover
 
     sig { returns T.nilable(String) }
     def mark_as_draft
+      number = self.number
+      raise "Unable to mark #{to_s} as draft, missing required data" unless number
+
       @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner, pull_name: to_s)
     end
 

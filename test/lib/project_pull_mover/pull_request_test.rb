@@ -34,5 +34,21 @@ module ProjectPullMover
         assert_predicate pull, :draft?
       end
     end
+
+    describe "#number" do
+      it "returns PR number from initial data" do
+        pull_item_data = {"content" => {"number" => 456}}
+        pull = PullRequest.new(pull_item_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal 456, pull.number
+      end
+
+      it "returns nil when number not set in initial data hash" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.number
+
+        pull = PullRequest.new({"content" => {}}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.number
+      end
+    end
   end
 end
