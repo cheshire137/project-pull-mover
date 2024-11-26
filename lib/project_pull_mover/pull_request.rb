@@ -72,7 +72,17 @@ module ProjectPullMover
 
     sig { returns String }
     def to_s
-      "#{repo_name_with_owner}##{number}"
+      nwo = repo_name_with_owner
+      pull_number = number
+      if nwo && pull_number
+        "#{nwo}##{pull_number}"
+      elsif nwo
+        "#{nwo} pull request"
+      elsif pull_number
+        "pull request ##{pull_number}"
+      else
+        "pull request"
+      end
     end
 
     sig { returns String }

@@ -154,5 +154,30 @@ module ProjectPullMover
         assert_nil pull.repo_name
       end
     end
+
+    describe "#to_s" do
+      it "summarizes PR with repo and number when available" do
+        initial_data = {"content" => {"repository" => "someone/somerepo", "number" => 123}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "someone/somerepo#123", pull.to_s
+      end
+
+      it "summarizes PR with number when repo is not available" do
+        initial_data = {"content" => {"number" => 123}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "pull request #123", pull.to_s
+      end
+
+      it "summarizes PR with repo when number is not available" do
+        initial_data = {"content" => {"repository" => "someone/somerepo"}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "someone/somerepo pull request", pull.to_s
+      end
+
+      it "summarizes PR when repo and number are not available" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "pull request", pull.to_s
+      end
+    end
   end
 end
