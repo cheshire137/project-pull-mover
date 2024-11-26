@@ -198,25 +198,28 @@ module ProjectPullMover
 
     private
 
+    sig { params(message: String).void }
+    def log_error(message)
+      @error_message = message
+      @logger.error(message)
+    end
+
     sig { returns T::Boolean }
     def valid?
       unless project_number && project_owner && status_field
-        @error_message = "Error: missing required options"
-        @logger.error(@error_message)
+        log_error("Error: missing required options")
         @logger.info(to_s)
         return false
       end
 
       unless %w(user organization).include?(project_owner_type)
-        @error_message = "Error: invalid project owner type"
-        @logger.error(@error_message)
+        log_error("Error: invalid project owner type")
         @logger.info(to_s)
         return false
       end
 
       unless any_option_ids?
-        @error_message = "Error: you must specify at least one option ID for the status field"
-        @logger.error(@error_message)
+        log_error("Error: you must specify at least one option ID for the status field")
         @logger.info(to_s)
         return false
       end
