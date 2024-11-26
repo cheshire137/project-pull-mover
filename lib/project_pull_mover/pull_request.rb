@@ -49,23 +49,25 @@ module ProjectPullMover
       @labels ||= @data["labels"] || []
     end
 
-    sig { returns String }
+    sig { returns T.nilable(String) }
     def repo_name_with_owner
-      @repo_name_with_owner ||= @data["content"]["repository"]
+      return @repo_name_with_owner if defined?(@repo_name_with_owner)
+      content = @data["content"]
+      @repo_name_with_owner = content["repository"] if content
     end
 
-    sig { returns String }
+    sig { returns T.nilable(String) }
     def repo_owner
       return @repo_owner if @repo_owner
-      @repo_owner, @repo_name = repo_name_with_owner.split("/")
-      T.must(@repo_owner)
+      @repo_owner, @repo_name = repo_name_with_owner&.split("/")
+      @repo_owner
     end
 
-    sig { returns String }
+    sig { returns T.nilable(String) }
     def repo_name
       return @repo_name if @repo_name
-      @repo_owner, @repo_name = repo_name_with_owner.split("/")
-      T.must(@repo_name)
+      @repo_owner, @repo_name = repo_name_with_owner&.split("/")
+      @repo_name
     end
 
     sig { returns String }
@@ -75,7 +77,12 @@ module ProjectPullMover
 
     sig { returns String }
     def graphql_field_alias
-      @graphql_field_alias ||= "pull#{Utils.replace_hyphens(repo_owner)}#{Utils.replace_hyphens(repo_name)}#{number}"
+      return @graphql_field_alias if defined?(@graphql_field_alias)
+      repo_owner = self.repo_owner
+      repo_name = self.repo_name
+      owner_segment = Utils.replace_hyphens(repo_owner) if repo_owner
+      name_segment = Utils.replace_hyphens(repo_name) if repo_name
+      @graphql_field_alias = "pull#{owner_segment}#{name_segment}#{number}"
     end
 
     sig { returns String }
@@ -343,7 +350,10 @@ module ProjectPullMover
     sig { params(label_name: String).returns(T.nilable(String)) }
     def apply_label(label_name:)
       number = self.number
-      raise MissingRequiredDataError, "Unable to apply label to #{to_s}, missing required data" unless number
+      repo_name_with_owner = self.repo_name_with_owner
+      unless number && repo_name_with_owner
+        raise MissingRequiredDataError, "Unable to apply label to #{to_s}, missing required data"
+      end
 
       @gh_cli.apply_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
@@ -352,13 +362,21 @@ module ProjectPullMover
     sig { params(label_name: String).returns(T.nilable(String)) }
     def remove_label(label_name:)
       number = self.number
-      raise MissingRequiredDataError, "Unable to remove label from #{to_s}, missing required data" unless number
+      repo_name_with_owner = self.repo_name_with_owner
+      unless number && repo_name_with_owner
+        raise MissingRequiredDataError, "Unable to remove label from #{to_s}, missing required data"
+      end
 
       @gh_cli.remove_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
     end
 
     def rerun_failed_run(run_id:, build_name:)
+      repo_name_with_owner = self.repo_name_with_owner
+      unless repo_name_with_owner
+        raise MissingRequiredDataError, "Unable to rerun failed run for #{to_s}, missing required data"
+      end
+
       @gh_cli.rerun_failed_run(run_id: run_id, build_name: build_name, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
     end
@@ -376,7 +394,10 @@ module ProjectPullMover
     sig { returns T.nilable(String) }
     def mark_as_draft
       number = self.number
-      raise MissingRequiredDataError, "Unable to mark #{to_s} as draft, missing required data" unless number
+      repo_name_with_owner = self.repo_name_with_owner
+      unless number && repo_name_with_owner
+        raise MissingRequiredDataError, "Unable to mark #{to_s} as draft, missing required data"
+      end
 
       @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner, pull_name: to_s)
     end
