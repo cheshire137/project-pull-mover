@@ -11,8 +11,9 @@ module ProjectPullMover
       @logger = Logger.new(out_stream: @out_stream, err_stream: @err_stream)
       @project_number = 123
       @project_owner = "someUser"
+      @failing_test_label = "testfailure"
       argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
-        "MyInProgressID", "-h", "gh", "-f", "testfailure", "-a", "notAgainstMainId", "-n", "needsReviewId",
+        "MyInProgressID", "-h", "gh", "-f", @failing_test_label, "-a", "notAgainstMainId", "-n", "needsReviewId",
         "-r", "ReadyToDeployId", "-c", "Conflicting_id", "-g", "ignoredId1,ignoredId2", "-m"]
       @options = Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger)
       @project = Project.new(@options)
@@ -21,8 +22,8 @@ module ProjectPullMover
 
     describe "#set_graphql_data" do
       it "initializes repo and data from GraphQL response" do
-        pull_item_data = {}
-        pull = PullRequest.new(pull_item_data, options: @options, project: @project, gh_cli: @gh_cli)
+        initial_data = {}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
         assert_nil pull.repo
         refute_predicate pull, :draft?
         gql_data = {"pullRequest" => {"isDraft" => true}, "defaultBranchRef" => {"name" => "trunk"}}
@@ -37,8 +38,8 @@ module ProjectPullMover
 
     describe "#number" do
       it "returns PR number from initial data" do
-        pull_item_data = {"content" => {"number" => 456}}
-        pull = PullRequest.new(pull_item_data, options: @options, project: @project, gh_cli: @gh_cli)
+        initial_data = {"content" => {"number" => 456}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
         assert_equal 456, pull.number
       end
 
@@ -48,6 +49,37 @@ module ProjectPullMover
 
         pull = PullRequest.new({"content" => {}}, options: @options, project: @project, gh_cli: @gh_cli)
         assert_nil pull.number
+      end
+    end
+
+    describe "#has_failing_test_label?" do
+      it "returns true when failing test label is specified and on the PR" do
+        initial_data = {"labels" => ["whee", @failing_test_label, "woo"]}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_predicate pull, :has_failing_test_label?
+      end
+
+      it "returns false when failing test label is not specified" do
+        argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
+          "MyInProgressID", "-h", "gh", "-a", "notAgainstMainId", "-n", "needsReviewId",
+          "-r", "ReadyToDeployId", "-c", "Conflicting_id", "-g", "ignoredId1,ignoredId2", "-m"]
+        options = Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger)
+        initial_data = {"labels" => ["whee", @failing_test_label, "woo"]}
+        pull = PullRequest.new(initial_data, options: options, project: @project, gh_cli: @gh_cli)
+
+        refute_predicate pull, :has_failing_test_label?
+      end
+
+      it "returns false when failing test label is specified but not on the PR" do
+        initial_data = {"labels" => ["whee", "woo"]}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        refute_predicate pull, :has_failing_test_label?
+      end
+
+      it "returns false when PR has no labels" do
+        initial_data = {}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        refute_predicate pull, :has_failing_test_label?
       end
     end
   end
