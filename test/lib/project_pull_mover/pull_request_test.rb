@@ -12,7 +12,8 @@ module ProjectPullMover
       @project_number = 123
       @project_owner = "someUser"
       @failing_test_label = "testfailure"
-      argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", "StatusField", "-i",
+      @status_field = "StatusField"
+      argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", @status_field, "-i",
         "MyInProgressID", "-h", "gh", "-f", @failing_test_label, "-a", "notAgainstMainId", "-n", "needsReviewId",
         "-r", "ReadyToDeployId", "-c", "Conflicting_id", "-g", "ignoredId1,ignoredId2", "-m"]
       @options = Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger)
@@ -196,6 +197,30 @@ module ProjectPullMover
       it "omits number when not known" do
         pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli, index: 1)
         assert_equal "pull1", pull.graphql_field_alias
+      end
+    end
+
+    describe "#graphql_field" do
+      it "returns a field for a GraphQL query using repo details and number" do
+        initial_data = {"content" => {"repository" => "someone/some-repo", "number" => 123}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+
+        result = pull.graphql_field
+
+        assert_includes result, "pullSomeoneSomeRepo123: repository(owner: \"someone\", name: \"some-repo\") {"
+        assert_includes result, "pullRequest(number: 123) {"
+        assert_includes result, "isRequired(pullRequestNumber: 123)"
+        assert_includes result, "fieldValueByName(name: \"#{@status_field}\") {"
+      end
+
+      it "raises error when repo details or number are missing" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+
+        error = assert_raises(PullRequest::MissingRequiredDataError) do
+          pull.graphql_field
+        end
+
+        assert_equal "Unable to build GraphQL field for pull request, missing required data", error.message
       end
     end
   end
