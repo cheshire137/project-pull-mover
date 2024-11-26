@@ -223,5 +223,42 @@ module ProjectPullMover
         assert_equal "Unable to build GraphQL field for pull request, missing required data", error.message
       end
     end
+
+    describe "#failing_required_check_suites?" do
+      it "returns true when a required check suite is failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "checkSuites" => {"nodes" => [{"checkRuns" => {"nodes" => [{"isRequired" => true}]}}]},
+        }}]}}})
+        assert_predicate pull, :failing_required_check_suites?
+      end
+
+      it "returns false when last commit check suites have no check runs" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "checkSuites" => {"nodes" => [{"checkRuns" => {"nodes" => []}}]},
+        }}]}}})
+        refute_predicate pull, :failing_required_check_suites?
+      end
+
+      it "returns false when an optional check suite is failing on the last commit" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => [{"commit" => {
+          "checkSuites" => {"nodes" => [{"checkRuns" => {"nodes" => [{"isRequired" => false}]}}]},
+        }}]}}})
+        refute_predicate pull, :failing_required_check_suites?
+      end
+
+      it "returns false when no last commit is known" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"commits" => {"nodes" => []}}})
+        refute_predicate pull, :failing_required_check_suites?
+      end
+
+      it "returns false when GraphQL data has not been set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        refute_predicate pull, :failing_required_check_suites?
+      end
+    end
   end
 end
