@@ -108,6 +108,10 @@ module ProjectPullMover
 
     sig { returns String }
     def graphql_field
+      unless repo_owner && repo_name && number
+        raise MissingRequiredDataError, "Unable to build GraphQL field for #{to_s}, missing required data"
+      end
+
       <<~GRAPHQL
         #{graphql_field_alias}: repository(owner: "#{repo_owner}", name: "#{repo_name}") {
           id

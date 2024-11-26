@@ -67,6 +67,7 @@ module ProjectPullMover
         @logger.loading("Looking up items in project #{@project.number} owned by @#{@project.owner}...")
       end
 
+      err = T.let(err, T.nilable(StandardError))
       project_items = begin
         @gh_cli.get_project_items
       rescue GhCli::NoJsonError => err
@@ -107,15 +108,23 @@ module ProjectPullMover
         end
       end
 
-      project_pulls = project_items.map.with_index do |pull_info, index|
+      project_pulls = T.let(project_items.map.with_index do |pull_info, index|
         ProjectPullMover::PullRequest.new(pull_info, options: @options, project: @project, gh_cli: @gh_cli,
           index: index)
-      end
+      end, T::Array[ProjectPullMover::PullRequest])
 
       @logger.loading("Looking up more info about each pull request in project...") unless quiet_mode?
       graphql_queries = []
       graphql_data = {}
-      pull_fields = project_pulls.map(&:graphql_field)
+      pull_fields = project_pulls.map do |pull|
+        begin
+          pull.graphql_field
+        rescue PullRequest::MissingRequiredDataError => err
+          @logger.error(err.message)
+          nil
+        end
+      end
+      pull_fields = pull_fields.compact
 
       graphql_queries << <<~GRAPHQL
         query {
