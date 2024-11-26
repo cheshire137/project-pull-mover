@@ -179,5 +179,24 @@ module ProjectPullMover
         assert_equal "pull request", pull.to_s
       end
     end
+
+    describe "#graphql_field_alias" do
+      it "uses repo when known" do
+        initial_data = {"content" => {"repository" => "some-one/some-repo", "number" => 123}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "pullSomeOneSomeRepo123", pull.graphql_field_alias
+      end
+
+      it "uses provided index when repo is not known" do
+        initial_data = {"content" => {"number" => 123}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli, index: 456)
+        assert_equal "pull456123", pull.graphql_field_alias
+      end
+
+      it "omits number when not known" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli, index: 1)
+        assert_equal "pull1", pull.graphql_field_alias
+      end
+    end
   end
 end

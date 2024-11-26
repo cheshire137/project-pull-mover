@@ -98,9 +98,12 @@ module ProjectPullMover
       return @graphql_field_alias if defined?(@graphql_field_alias)
       repo_owner = self.repo_owner
       repo_name = self.repo_name
-      owner_segment = Utils.replace_hyphens(repo_owner) if repo_owner
-      name_segment = Utils.replace_hyphens(repo_name) if repo_name
-      @graphql_field_alias = "pull#{owner_segment}#{name_segment}#{number}"
+      id = if repo_owner && repo_name
+        "#{Utils.replace_hyphens(repo_owner)}#{Utils.replace_hyphens(repo_name)}"
+      else
+        index
+      end
+      @graphql_field_alias = "pull#{id}#{number}"
     end
 
     sig { returns String }
