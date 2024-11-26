@@ -17,14 +17,22 @@ module ProjectPullMover
     sig { returns T.nilable(Repository) }
     attr_reader :repo
 
-    sig { params(data: T::Hash[T.untyped, T.untyped], options: Options, project: Project, gh_cli: GhCli).void }
-    def initialize(data, options:, project:, gh_cli:)
+    sig { returns Integer }
+    attr_reader :index
+
+    sig do
+      params(
+        data: T::Hash[T.untyped, T.untyped], options: Options, project: Project, gh_cli: GhCli, index: Integer
+      ).void
+    end
+    def initialize(data, options:, project:, gh_cli:, index: 0)
       @data = data
       @options = options
       @gql_data = T.let({}, T::Hash[String, T.untyped])
       @repo = T.let(nil, T.nilable(Repository))
       @project = project
       @gh_cli = gh_cli
+      @index = index
     end
 
     def set_graphql_data(repo_and_pull_data)

@@ -107,8 +107,9 @@ module ProjectPullMover
         end
       end
 
-      project_pulls = project_items.map do |pull_info|
-        ProjectPullMover::PullRequest.new(pull_info, options: @options, project: @project, gh_cli: @gh_cli)
+      project_pulls = project_items.map.with_index do |pull_info, index|
+        ProjectPullMover::PullRequest.new(pull_info, options: @options, project: @project, gh_cli: @gh_cli,
+          index: index)
       end
 
       @logger.loading("Looking up more info about each pull request in project...") unless quiet_mode?
