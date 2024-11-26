@@ -10,6 +10,11 @@ rescue ProjectPullMover::Options::InvalidOptionsError
   exit 1
 end
 
+if options.print_version?
+  logger.info("Version: #{ProjectPullMover::VERSION}")
+  exit 0
+end
+
 gh_cli = ProjectPullMover::GhCli.new(options: options, logger: logger)
 gh_cli.check_auth_status unless options.quiet_mode?
 

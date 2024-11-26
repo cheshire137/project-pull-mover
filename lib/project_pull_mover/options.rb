@@ -80,13 +80,20 @@ module ProjectPullMover
         opts.on("-b BUILDS", "--builds-to-rerun", Array, "Case-insensitive comma-separated list of build names or " \
           "partial build names that should be re-run when they are failing and the pull request is moved them back " \
           "to In Progress status")
+        opts.on("-v", "--version", "Print version and exit")
       end, OptionParser)
     end
 
     sig { returns(T::Boolean) }
     def parse
       @option_parser.parse!(@argv, into: @options)
+      return true if print_version?
       valid?
+    end
+
+    sig { returns(T::Boolean) }
+    def print_version?
+      !!@options[:version]
     end
 
     sig { returns String }

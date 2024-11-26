@@ -61,6 +61,7 @@ Usage: project_pull_mover [options]
     -f, --failing-test-label LABEL   Name of the label to apply to a pull request that has failing required builds
     -u, --author AUTHOR              Specify a username so that only PRs in the project authored by that user are changed
     -m, --mark-draft                 Also mark pull requests as a draft when setting them to In Progress, Not Against Main, or Conflicting status.
+    -v, --version                    Print version and exit
 ```
 
 Run the script with:

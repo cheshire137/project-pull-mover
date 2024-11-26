@@ -37,7 +37,12 @@ module ProjectPullMover
         assert_equal "Error: invalid project owner type", error.message
         assert_match(/Usage: project_pull_mover.rb /, @out_stream.string)
         assert_match(/Error: invalid project owner type/, @err_stream.string)
-        end
+      end
+
+      it "does not raise for missing required parameters when version flag is passed" do
+        options = Options.parse(file: "project_pull_mover.rb", logger: @logger, argv: ["-v"])
+        assert_predicate options, :print_version?
+      end
     end
 
     it "parses required arguments" do
