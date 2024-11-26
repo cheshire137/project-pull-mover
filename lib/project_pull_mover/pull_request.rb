@@ -189,7 +189,8 @@ module ProjectPullMover
       status = last_commit["status"]
       return false unless status
 
-      status["contexts"].any? do |context|
+      contexts = status["contexts"] || []
+      contexts.any? do |context|
         context["isRequired"] && context["state"] == "FAILURE"
       end
     end
