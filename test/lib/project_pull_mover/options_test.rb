@@ -39,6 +39,16 @@ module ProjectPullMover
         assert_match(/Error: invalid project owner type/, @err_stream.string)
       end
 
+      it "raises exception when argument requiring a value is not given one" do
+        error = assert_raises(Options::InvalidOptionsError) do
+          Options.parse(file: "ScriptFileName", logger: @logger, argv: ["-p"])
+        end
+
+        assert_equal "Error: missing argument: -p", error.message
+        assert_match(/Usage: ScriptFileName /, @out_stream.string)
+        assert_match(/Error: missing argument: -p/, @err_stream.string)
+      end
+
       it "does not raise for missing required parameters when version flag is passed" do
         options = Options.parse(file: "project_pull_mover.rb", logger: @logger, argv: ["-v"])
         assert_predicate options, :print_version?

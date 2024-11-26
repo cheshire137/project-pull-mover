@@ -89,6 +89,10 @@ module ProjectPullMover
       @option_parser.parse!(@argv, into: @options)
       return true if print_version?
       valid?
+    rescue OptionParser::MissingArgument => err
+      log_error("Error: #{err.message}")
+      @logger.info(to_s)
+      false
     end
 
     sig { returns(T::Boolean) }
