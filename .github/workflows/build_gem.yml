@@ -29,11 +29,11 @@ jobs:
         run: bundle install
 
       - name: Build gem
-        run: gem build project_pull_mover.gemspec -o project_pull_mover.gem
+        run: gem build project_pull_mover.gemspec -o project_pull_mover-${{ github.event.inputs.release_tag }}.gem
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: project_pull_mover.gem
+          files: project_pull_mover-${{ github.event.inputs.release_tag }}.gem
           tag_name: ${{ github.event.inputs.release_tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
