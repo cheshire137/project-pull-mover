@@ -116,5 +116,24 @@ module ProjectPullMover
         assert_nil pull.repo_name_with_owner
       end
     end
+
+    describe "#repo_owner" do
+      it "returns owner login of pull request repository" do
+        initial_data = {"content" => {"repository" => "someone/somerepo"}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_equal "someone", pull.repo_owner
+      end
+
+      it "returns nil when repository not given in initial data" do
+        initial_data = {"content" => {"foo" => "bar"}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.repo_owner
+      end
+
+      it "returns nil when content not given in initial data" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.repo_owner
+      end
+    end
   end
 end
