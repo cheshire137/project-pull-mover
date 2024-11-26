@@ -12,6 +12,8 @@ module ProjectPullMover
   class PullRequest
     extend T::Sig
 
+    class MissingRequiredDataError < StandardError; end
+
     sig { returns T.nilable(Repository) }
     attr_reader :repo
 
@@ -341,7 +343,7 @@ module ProjectPullMover
     sig { params(label_name: String).returns(T.nilable(String)) }
     def apply_label(label_name:)
       number = self.number
-      raise "Unable to apply label to #{to_s}, missing required data" unless number
+      raise MissingRequiredDataError, "Unable to apply label to #{to_s}, missing required data" unless number
 
       @gh_cli.apply_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
@@ -350,7 +352,7 @@ module ProjectPullMover
     sig { params(label_name: String).returns(T.nilable(String)) }
     def remove_label(label_name:)
       number = self.number
-      raise "Unable to remove label from #{to_s}, missing required data" unless number
+      raise MissingRequiredDataError, "Unable to remove label from #{to_s}, missing required data" unless number
 
       @gh_cli.remove_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
@@ -374,7 +376,7 @@ module ProjectPullMover
     sig { returns T.nilable(String) }
     def mark_as_draft
       number = self.number
-      raise "Unable to mark #{to_s} as draft, missing required data" unless number
+      raise MissingRequiredDataError, "Unable to mark #{to_s} as draft, missing required data" unless number
 
       @gh_cli.mark_pull_request_as_draft(number: number, repo_nwo: repo_name_with_owner, pull_name: to_s)
     end
@@ -535,7 +537,7 @@ module ProjectPullMover
       current_status_option_name = self.current_status_option_name
 
       unless project_item_id && project_global_id && status_field_id && current_status_option_name
-        raise "Unable to set project status for #{to_s}, missing required data"
+        raise MissingRequiredDataError, "Unable to set project status for #{to_s}, missing required data"
       end
 
       @gh_cli.set_project_item_status(
