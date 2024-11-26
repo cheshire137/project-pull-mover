@@ -166,7 +166,15 @@ module ProjectPullMover
 
     sig { returns T.nilable(String) }
     def failing_test_label
-      @options[:"failing-test-label"]
+      return @failing_test_label if defined?(@failing_test_label)
+      value = @options[:"failing-test-label"]
+      if value
+        value = value.strip
+        if value.size < 1
+          value = nil
+        end
+      end
+      @failing_test_label = value
     end
 
     sig { returns String }

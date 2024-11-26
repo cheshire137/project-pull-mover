@@ -105,19 +105,6 @@ module ProjectPullMover
       end
     end
 
-    sig { returns(T.nilable(String)) }
-    def failing_test_label_name
-      return @failing_test_label_name if defined?(@failing_test_label_name)
-      result = @options.failing_test_label
-      if result
-        result = result.strip
-        if result.size < 1
-          result = nil
-        end
-      end
-      @failing_test_label_name = result
-    end
-
     private
 
     def option_name_for(option_id)

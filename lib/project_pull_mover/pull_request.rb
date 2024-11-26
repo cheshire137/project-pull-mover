@@ -28,7 +28,7 @@ module ProjectPullMover
     end
 
     def set_graphql_data(repo_and_pull_data)
-      @repo ||= Repository.new(repo_and_pull_data, failing_test_label_name: @project.failing_test_label_name)
+      @repo ||= Repository.new(repo_and_pull_data)
       @gql_data = repo_and_pull_data["pullRequest"] || {}
     end
 
@@ -41,7 +41,7 @@ module ProjectPullMover
 
     sig { returns T.nilable(T::Boolean) }
     def has_failing_test_label?
-      @project.failing_test_label_name && labels.include?(@project.failing_test_label_name)
+      failing_test_label && labels.include?(failing_test_label)
     end
 
     sig { returns T::Array[String] }
@@ -454,14 +454,14 @@ module ProjectPullMover
 
     sig { returns T.nilable(T::Boolean) }
     def should_apply_failing_test_label?
-      failing_required_builds? && failing_test_label_name && !has_failing_test_label?
+      failing_required_builds? && failing_test_label && !has_failing_test_label?
     end
 
     sig { returns T.nilable(String) }
     def apply_label_if_necessary
       if should_apply_failing_test_label?
-        apply_label(label_name: T.must(failing_test_label_name))
-        return failing_test_label_name
+        apply_label(label_name: T.must(failing_test_label))
+        return failing_test_label
       end
 
       nil
@@ -469,14 +469,14 @@ module ProjectPullMover
 
     sig { returns T.nilable(T::Boolean) }
     def should_remove_failing_test_label?
-      !failing_required_builds? && failing_test_label_name && has_failing_test_label?
+      !failing_required_builds? && failing_test_label && has_failing_test_label?
     end
 
     sig { returns T.nilable(String) }
     def remove_label_if_necessary
       if should_remove_failing_test_label?
-        remove_label(label_name: T.must(failing_test_label_name))
-        return failing_test_label_name
+        remove_label(label_name: T.must(failing_test_label))
+        return failing_test_label
       end
 
       nil
@@ -606,8 +606,8 @@ module ProjectPullMover
     end
 
     sig { returns T.nilable(String) }
-    def failing_test_label_name
-      @project.failing_test_label_name
+    def failing_test_label
+      @options.failing_test_label
     end
 
     sig { returns T::Array[String] }
