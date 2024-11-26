@@ -663,9 +663,13 @@ module ProjectPullMover
 
     def last_commit
       return @last_commit if defined?(@last_commit)
-      node = @gql_data["commits"]["nodes"][0]
-      @last_commit = if node
-        node["commit"]
+      commits = @gql_data["commits"]
+      @last_commit = if commits
+        commit_nodes = commits["nodes"]
+        if commit_nodes
+          node = commit_nodes[0]
+          node["commit"] if node
+        end
       end
     end
 
