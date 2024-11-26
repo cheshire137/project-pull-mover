@@ -343,5 +343,33 @@ module ProjectPullMover
         refute_predicate pull, :failing_required_statuses?
       end
     end
+
+    describe "#project_item" do
+      it "returns project item hash for the pull request in the specified project when available" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"projectItems" => {"nodes" => [
+          {"project" => {"number" => @project_number - 1}, "id" => "someItemId"},
+          {"project" => {"number" => @project_number}, "id" => "targetItemId"},
+          {"project" => {"number" => @project_number + 1}, "id" => "otherItemId"},
+        ]}}})
+
+        result = pull.project_item
+
+        refute_nil result
+        assert_equal "targetItemId", result["id"]
+        assert_equal @project_number, result["project"]["number"]
+      end
+
+      it "returns nil when GraphQL data has not been set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        assert_nil pull.project_item
+      end
+
+      it "returns nil when GraphQL data did not include project items" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"isDraft" => true}})
+        assert_nil pull.project_item
+      end
+    end
   end
 end
