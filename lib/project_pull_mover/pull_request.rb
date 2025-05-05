@@ -463,7 +463,7 @@ module ProjectPullMover
       return false if daisy_chained? && @options.not_against_main_option_id
 
       if has_needs_review_status? || has_ready_to_deploy_status?
-        failing_required_builds? || draft?
+        (failing_required_builds? && !@options.ignore_failing_required_builds?) || draft?
       else # Conflicting, Not against main, In progress
         !approved? || draft?
       end

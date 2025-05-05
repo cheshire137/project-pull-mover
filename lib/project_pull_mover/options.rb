@@ -80,6 +80,8 @@ module ProjectPullMover
         opts.on("-b BUILDS", "--builds-to-rerun", Array, "Case-insensitive comma-separated list of build names or " \
           "partial build names that should be re-run when they are failing and the pull request is moved them back " \
           "to In Progress status")
+        opts.on("-e", "--ignore-failing-required-builds", "Don't mark a PR as draft or move its column based on " \
+          "whether it has failing required builds.")
         opts.on("-v", "--version", "Print version and exit")
       end, OptionParser)
     end
@@ -138,6 +140,11 @@ module ProjectPullMover
     sig { returns T::Boolean }
     def quiet_mode?
       !!@options[:quiet]
+    end
+
+    sig { returns T::Boolean }
+    def ignore_failing_required_builds?
+      !!@options[:"ignore-failing-required-builds"]
     end
 
     sig { returns T::Boolean }
