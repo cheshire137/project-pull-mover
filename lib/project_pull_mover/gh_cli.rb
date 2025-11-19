@@ -82,7 +82,7 @@ module ProjectPullMover
         raise NoJsonError, "Error: no JSON results for project items; command: #{project_items_cmd}"
       end
 
-      all_project_items = JSON.parse(json)["items"]
+      all_project_items = JSON.parse(json.force_encoding("UTF-8"))["items"]
       unless quiet_mode?
         units = all_project_items.size == 1 ? "item" : "items"
         @logger.info("Found #{all_project_items.size} #{units} in project")
@@ -120,7 +120,7 @@ module ProjectPullMover
     sig { params(graphql_query: String).returns(T.untyped) }
     def make_graphql_api_query(graphql_query)
       json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
-      graphql_resp = JSON.parse(json_str)
+      graphql_resp = JSON.parse(json_str.force_encoding("UTF-8"))
 
       unless graphql_resp["data"]
         graphql_error_msg = if graphql_resp["errors"]
@@ -150,7 +150,7 @@ module ProjectPullMover
           "command: #{pulls_by_author_in_project_cmd}"
       end
 
-      JSON.parse(json)
+      JSON.parse(json.force_encoding("UTF-8"))
     end
 
     sig { returns(T::Boolean) }

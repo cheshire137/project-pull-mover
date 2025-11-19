@@ -1,6 +1,0 @@
-module Prism
-  module Serialize
-    def self.load: (String, String) -> ParseResult
-    def self.load_tokens: (Source, String) -> LexResult
-  end
-end

@@ -142,6 +142,21 @@ module ProjectPullMover
         assert_equal "#{Logger::INFO_PREFIX}Found 1 item in project\n#{Logger::SUCCESS_PREFIX}No pull requests " \
           "found in project #{@project_number} by @#{@project_owner}", @out_stream.string.strip
       end
+
+      it "handles non-ASCII characters in JSON with ASCII-8BIT encoding" do
+        pull_item = {"content" => {"type" => "PullRequest", "id" => "123", "title" => "Fix 🐛 bug"}}
+        json_data = {"items" => [pull_item]}.to_json
+        # Simulate backtick command returning ASCII-8BIT encoded string
+        cmd_output = json_data.dup.force_encoding("ASCII-8BIT")
+        GhCli.any_instance.expects(:`).with("gh project item-list #{@project_number} --owner #{@project_owner} " \
+          "--format json --limit #{@proj_items_limit}").returns(cmd_output)
+
+        result = @gh_cli.get_project_items
+
+        assert_equal 1, result.size
+        assert_equal pull_item, result.first
+        assert_equal "", @err_stream.string
+      end
     end
 
     describe "#pulls_by_author_in_project" do
@@ -174,6 +189,21 @@ module ProjectPullMover
         gh_cli = GhCli.new(options: options, logger: @logger)
 
         assert_nil gh_cli.pulls_by_author_in_project
+      end
+
+      it "handles non-ASCII characters in JSON with ASCII-8BIT encoding" do
+        expected_result = [{"number" => 1, "repository" => {"nameWithOwner" => "user/repo"}, "title" => "Add 🎉 feature"}]
+        json_data = expected_result.to_json
+        # Simulate backtick command returning ASCII-8BIT encoded string
+        cmd_output = json_data.dup.force_encoding("ASCII-8BIT")
+        GhCli.any_instance.expects(:`).once.with("gh search prs --author \"#{@author}\" --project " \
+          "\"#{@project_owner}/#{@project_number}\" --json \"number,repository\" --limit #{@proj_items_limit} " \
+          "--state open").returns(cmd_output)
+
+        result = @gh_cli.pulls_by_author_in_project
+
+        assert_equal expected_result, result
+        assert_equal "", @err_stream.string
       end
     end
 
@@ -237,6 +267,19 @@ module ProjectPullMover
         error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
 
         assert_equal "Error: no data returned from the GraphQL API: {\"foo\"=>\"bar\"}", error.message
+      end
+
+      it "handles non-ASCII characters in JSON with ASCII-8BIT encoding" do
+        data = {"project" => {"name" => "Test 🚀 Project"}}
+        json_data = {"data" => data}.to_json
+        # Simulate backtick command returning ASCII-8BIT encoded string
+        cmd_output = json_data.dup.force_encoding("ASCII-8BIT")
+        graphql_query = "some query"
+        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+
+        result = @gh_cli.make_graphql_api_query(graphql_query)
+
+        assert_equal data, result
       end
     end
   end
