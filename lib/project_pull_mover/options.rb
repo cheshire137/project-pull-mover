@@ -13,14 +13,14 @@ module ProjectPullMover
 
     sig do
       params(
-        file: String,
         logger: Logger,
         proj_items_limit: Integer,
         pull_fields_per_query: Integer,
-        argv: Array
+        argv: Array,
+        file: T.nilable(String)
       ).returns(Options)
     end
-    def self.parse(file:, logger:, proj_items_limit: 100, pull_fields_per_query: 5, argv: ARGV)
+    def self.parse(logger:, proj_items_limit: 100, pull_fields_per_query: 5, argv: ARGV, file: nil)
       options = new(file: file, logger: logger, proj_items_limit: proj_items_limit,
         pull_fields_per_query: pull_fields_per_query, argv: argv)
       raise InvalidOptionsError, options.error_message unless options.parse
@@ -38,20 +38,21 @@ module ProjectPullMover
 
     sig do
       params(
-        file: String,
         logger: Logger,
         proj_items_limit: Integer,
         pull_fields_per_query: Integer,
-        argv: Array
+        argv: Array,
+        file: T.nilable(String)
       ).void
     end
-    def initialize(file:, logger:, proj_items_limit: 100, pull_fields_per_query: 5, argv: ARGV)
+    def initialize(logger:, proj_items_limit: 100, pull_fields_per_query: 5, argv: ARGV, file: nil)
       @options = T.let({}, T::Hash[Symbol, T.untyped])
       @proj_items_limit = proj_items_limit
       @pull_fields_per_query = pull_fields_per_query
       @logger = logger
       @argv = argv
       @error_message = T.let(nil, T.nilable(String))
+      file ||= "project_pull_mover"
       @option_parser = T.let(OptionParser.new do |opts|
         opts.banner = "Usage: #{file} [options]"
         opts.on("-p NUM", "--project-number", Integer,
