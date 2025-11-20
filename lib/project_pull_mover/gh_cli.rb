@@ -12,6 +12,7 @@ module ProjectPullMover
 
     class NoJsonError < StandardError; end
     class GraphqlApiError < StandardError; end
+    class UnexpectedJsonStructureError < StandardError; end
 
     class JsonParseError < StandardError
       attr_reader :cause
@@ -86,12 +87,18 @@ module ProjectPullMover
     def get_project_items
       project_items_cmd = "#{gh_path} project item-list #{@options.project_number} " \
         "--owner #{@options.project_owner} --format json --limit #{@options.proj_items_limit}"
-      json = T.let(`#{project_items_cmd}`, T.nilable(String))
-      if json.nil? || json == ""
+      json_str = T.let(`#{project_items_cmd}`, T.nilable(String))
+      if json_str.nil? || json_str == ""
         raise NoJsonError, "Error: no JSON results for project items; command: #{project_items_cmd}"
       end
 
-      all_project_items = parse_json(json)["items"]
+      json_obj = parse_json(json_str)
+      unless json_obj.is_a?(Hash)
+        raise UnexpectedJsonStructureError, "Error: expected a hash with 'items', got #{json_obj.class.name}: " \
+          "#{json_obj.inspect}"
+      end
+
+      all_project_items = json_obj["items"]
       unless quiet_mode?
         units = all_project_items.size == 1 ? "item" : "items"
         @logger.info("Found #{all_project_items.size} #{units} in project")
@@ -131,6 +138,11 @@ module ProjectPullMover
       json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
       graphql_resp = parse_json(json_str)
 
+      unless graphql_resp.is_a?(Hash)
+        raise UnexpectedJsonStructureError, "Error: expected a hash from GraphQL API, got " \
+          "#{graphql_resp.class.name}: #{graphql_resp.inspect}"
+      end
+
       unless graphql_resp["data"]
         graphql_error_msg = if graphql_resp["errors"]
           graphql_resp["errors"].map { |err| err["message"] }.join("\n")
@@ -153,13 +165,19 @@ module ProjectPullMover
 
       pulls_by_author_in_project_cmd = "#{gh_path} search prs --author \"#{@options.author}\" --project " \
         "\"#{@options.project_owner}/#{@options.project_number}\" --json \"number,repository\" --limit #{@options.proj_items_limit} --state open"
-      json = T.let(`#{pulls_by_author_in_project_cmd}`, T.nilable(String))
-      if json.nil? || json == ""
+      json_str = T.let(`#{pulls_by_author_in_project_cmd}`, T.nilable(String))
+      if json_str.nil? || json_str == ""
         raise NoJsonError, "Error: no JSON results for pull requests by author in project; " \
           "command: #{pulls_by_author_in_project_cmd}"
       end
 
-      parse_json(json)
+      json_obj = parse_json(json_str)
+      unless json_obj.nil? || json_obj.is_a?(Array)
+        raise UnexpectedJsonStructureError, "Error: expected an array of pull requests, got " \
+          "#{json_obj.class.name}: #{json_obj.inspect}"
+      end
+
+      json_obj
     end
 
     sig { params(input: String).returns(T.untyped) }
