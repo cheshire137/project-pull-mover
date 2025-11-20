@@ -13,6 +13,15 @@ module ProjectPullMover
     class NoJsonError < StandardError; end
     class GraphqlApiError < StandardError; end
 
+    class JsonParseError < StandardError
+      attr_reader :cause
+
+      def initialize(message, cause = nil)
+        super(message)
+        @cause = cause
+      end
+    end
+
     sig { params(options: Options, logger: Logger).void }
     def initialize(options:, logger:)
       @options = options
@@ -82,7 +91,7 @@ module ProjectPullMover
         raise NoJsonError, "Error: no JSON results for project items; command: #{project_items_cmd}"
       end
 
-      all_project_items = JSON.parse(json)["items"]
+      all_project_items = parse_json(json)["items"]
       unless quiet_mode?
         units = all_project_items.size == 1 ? "item" : "items"
         @logger.info("Found #{all_project_items.size} #{units} in project")
@@ -120,7 +129,7 @@ module ProjectPullMover
     sig { params(graphql_query: String).returns(T.untyped) }
     def make_graphql_api_query(graphql_query)
       json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
-      graphql_resp = JSON.parse(json_str)
+      graphql_resp = parse_json(json_str)
 
       unless graphql_resp["data"]
         graphql_error_msg = if graphql_resp["errors"]
@@ -150,7 +159,14 @@ module ProjectPullMover
           "command: #{pulls_by_author_in_project_cmd}"
       end
 
-      JSON.parse(json)
+      parse_json(json)
+    end
+
+    sig { params(input: String).returns(T.untyped) }
+    def parse_json(input)
+      JSON.parse(input)
+    rescue Encoding::InvalidByteSequenceError => err
+      raise JsonParseError.new("Could not parse JSON due to invalid byte sequence: #{err.message}", err)
     end
 
     sig { returns(T::Boolean) }

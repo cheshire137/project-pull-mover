@@ -236,7 +236,7 @@ module ProjectPullMover
 
         error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
 
-        assert_equal "Error: no data returned from the GraphQL API: {\"foo\"=>\"bar\"}", error.message
+        assert_equal "Error: no data returned from the GraphQL API: {\"foo\" => \"bar\"}", error.message
       end
     end
   end
