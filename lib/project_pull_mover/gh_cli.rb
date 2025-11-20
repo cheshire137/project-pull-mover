@@ -164,7 +164,7 @@ module ProjectPullMover
 
     sig { params(input: String).returns(T.untyped) }
     def parse_json(input)
-      JSON.parse(input)
+      JSON.parse(input.encode("UTF-8"))
     rescue Encoding::InvalidByteSequenceError => err
       raise JsonParseError.new("Could not parse JSON due to invalid byte sequence: #{err.message}", err)
     end
