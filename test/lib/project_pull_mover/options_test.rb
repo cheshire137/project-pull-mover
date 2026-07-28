@@ -71,6 +71,7 @@ module ProjectPullMover
       refute_predicate options, :quiet_mode?
       assert_empty options.ignored_option_ids
       assert_nil options.failing_test_label
+      assert_nil options.assignee
       assert_empty options.build_names_for_rerun
     end
 
@@ -87,7 +88,7 @@ module ProjectPullMover
     it "parses optional arguments" do
       argv = %w(-p 123 -o cheshire137 -t user -i inProgressId -a myNotAgainstMainId -n NeedsReviewID -r
         ready_to_deploy_id -c conflictingId -g ignored1,ignored2,Ignored3 -s Status -h /usr/local/bin/gh -m -f
-        failing-test -u cheshire137 --quiet)
+        failing-test -u cheshire137 -A someAssignee --quiet)
       options = Options.new(file: "project_pull_mover.rb", argv: argv, logger: @logger)
 
       assert options.parse, @err_stream.string
@@ -108,6 +109,7 @@ module ProjectPullMover
       assert_predicate options, :quiet_mode?
       assert_equal "failing-test", options.failing_test_label
       assert_equal "cheshire137", options.author
+      assert_equal "someAssignee", options.assignee
       assert_empty options.build_names_for_rerun
     end
   end

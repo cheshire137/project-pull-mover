@@ -21,6 +21,12 @@ module ProjectPullMover
       @gh_cli = GhCli.new(options: @options, logger: @logger)
     end
 
+    def options_with_assignee(login)
+      argv = ["-p", @project_number.to_s, "-o", @project_owner, "-t", "user", "-s", @status_field, "-i",
+        "MyInProgressID", "-h", "gh", "-A", login]
+      Options.parse(file: "project_pull_mover.rb", argv: argv, logger: @logger)
+    end
+
     describe "#set_graphql_data" do
       it "initializes repo and data from GraphQL response" do
         initial_data = {}
@@ -96,6 +102,90 @@ module ProjectPullMover
       it "returns an empty array when labels are not present in initial data" do
         pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
         assert_empty pull.labels
+      end
+    end
+
+    describe "#assignees" do
+      it "returns assignee logins from GraphQL data" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => [{"login" => "userA"},
+          {"login" => "userB"}]}}})
+
+        assert_equal %w(userA userB), pull.assignees
+      end
+
+      it "returns an empty array when there is no assignee data" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {}})
+
+        assert_empty pull.assignees
+      end
+    end
+
+    describe "#has_assignee?" do
+      it "returns true when the login is already an assignee, case-insensitively" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => [{"login" => "userA"}]}}})
+
+        assert pull.has_assignee?("USERA")
+        refute pull.has_assignee?("userB")
+      end
+    end
+
+    describe "#should_add_assignee?" do
+      it "returns false when no assignee option is set" do
+        pull = PullRequest.new({}, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => []}}})
+
+        refute_predicate pull, :should_add_assignee?
+      end
+
+      it "returns true when assignee option is set and the PR lacks that assignee" do
+        options = options_with_assignee("userB")
+        pull = PullRequest.new({}, options: options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => [{"login" => "userA"}]}}})
+
+        assert_predicate pull, :should_add_assignee?
+      end
+
+      it "returns false when the PR already has that assignee" do
+        options = options_with_assignee("userA")
+        pull = PullRequest.new({}, options: options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => [{"login" => "userA"}]}}})
+
+        refute_predicate pull, :should_add_assignee?
+      end
+    end
+
+    describe "#add_assignee_if_necessary" do
+      it "adds the assignee and returns the login when the PR lacks that assignee" do
+        options = options_with_assignee("userB")
+        initial_data = {"content" => {"repository" => "foo/bar", "number" => 5}}
+        pull = PullRequest.new(initial_data, options: options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => [{"login" => "userA"}]}}})
+        @gh_cli.expects(:add_pull_request_assignee).once.with(login: "userB", number: 5, repo_nwo: "foo/bar",
+          pull_name: "foo/bar#5")
+
+        assert_equal "userB", pull.add_assignee_if_necessary
+      end
+
+      it "does nothing and returns nil when the PR already has that assignee" do
+        options = options_with_assignee("userA")
+        initial_data = {"content" => {"repository" => "foo/bar", "number" => 5}}
+        pull = PullRequest.new(initial_data, options: options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => [{"login" => "userA"}]}}})
+        @gh_cli.expects(:add_pull_request_assignee).never
+
+        assert_nil pull.add_assignee_if_necessary
+      end
+
+      it "does nothing and returns nil when no assignee option is set" do
+        initial_data = {"content" => {"repository" => "foo/bar", "number" => 5}}
+        pull = PullRequest.new(initial_data, options: @options, project: @project, gh_cli: @gh_cli)
+        pull.set_graphql_data({"pullRequest" => {"assignees" => {"nodes" => []}}})
+        @gh_cli.expects(:add_pull_request_assignee).never
+
+        assert_nil pull.add_assignee_if_necessary
       end
     end
 
@@ -211,6 +301,7 @@ module ProjectPullMover
         assert_includes result, "pullRequest(number: 123) {"
         assert_includes result, "isRequired(pullRequestNumber: 123)"
         assert_includes result, "fieldValueByName(name: \"#{@status_field}\") {"
+        assert_includes result, "assignees(first: 100) {"
       end
 
       it "raises error when repo details or number are missing" do

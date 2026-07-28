@@ -60,6 +60,7 @@ Usage: project_pull_mover [options]
     -h, --gh-path PATH               Path to gh executable
     -f, --failing-test-label LABEL   Name of the label to apply to a pull request that has failing required builds
     -u, --author AUTHOR              Specify a username so that only PRs in the project authored by that user are changed
+    -A, --assignee LOGIN             Specify a username to add as an assignee to any PR in the project that does not already have that assignee
     -m, --mark-draft                 Also mark pull requests as a draft when setting them to In Progress, Not Against Main, or Conflicting status.
     -e                               Don't mark a PR as draft or move its column based on whether it has failing required builds.
         --ignore-failing-required-builds

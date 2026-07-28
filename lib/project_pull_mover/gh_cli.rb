@@ -46,6 +46,14 @@ module ProjectPullMover
     end
 
     sig do
+      params(login: String, number: Integer, repo_nwo: String, pull_name: String).returns(T.nilable(String))
+    end
+    def add_pull_request_assignee(login:, number:, repo_nwo:, pull_name:)
+      @logger.loading("Adding @#{login} as an assignee to #{pull_name}...") unless quiet_mode?
+      `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --add-assignee "#{login}"`
+    end
+
+    sig do
       params(run_id: T.untyped, repo_nwo: String, pull_name: String, build_name: T.nilable(String))
         .returns(T.nilable(String))
     end

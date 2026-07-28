@@ -31,6 +31,17 @@ module ProjectPullMover
       end
     end
 
+    describe "#add_pull_request_assignee" do
+      it "runs gh command" do
+        GhCli.any_instance.expects(:`).with('gh pr edit 1 --repo "foo/bar" --add-assignee "someUser"')
+
+        @gh_cli.add_pull_request_assignee(login: "someUser", number: 1, repo_nwo: "foo/bar", pull_name: "my test PR")
+
+        assert_equal "#{Logger::LOADING_PREFIX}Adding @someUser as an assignee to my test PR...\n", @out_stream.string
+        assert_equal "", @err_stream.string
+      end
+    end
+
     describe "#remove_pull_request_label" do
       it "runs gh command" do
         GhCli.any_instance.expects(:`).with('gh pr edit 1 --repo "foo/bar" --remove-label "foo"')

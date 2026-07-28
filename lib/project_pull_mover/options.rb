@@ -76,6 +76,8 @@ module ProjectPullMover
           "failing required builds")
         opts.on("-u AUTHOR", "--author", String, "Specify a username so that only PRs in the project authored by that " \
           "user are changed")
+        opts.on("-A LOGIN", "--assignee", String, "Specify a username to add as an assignee to any PR in the project " \
+          "that does not already have that assignee")
         opts.on("-m", "--mark-draft", "Also mark pull requests as a draft when setting them to In Progress, " \
           "Not Against Main, or Conflicting status.")
         opts.on("-b BUILDS", "--builds-to-rerun", Array, "Case-insensitive comma-separated list of build names or " \
@@ -131,6 +133,17 @@ module ProjectPullMover
     sig { returns T.nilable(String) }
     def author
       @options[:"author"]
+    end
+
+    sig { returns T.nilable(String) }
+    def assignee
+      return @assignee if defined?(@assignee)
+      value = @options[:"assignee"]
+      if value
+        value = value.strip
+        value = nil if value.size < 1
+      end
+      @assignee = value
     end
 
     sig { returns T::Array[String] }

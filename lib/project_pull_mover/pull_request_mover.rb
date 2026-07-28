@@ -28,6 +28,7 @@ module ProjectPullMover
       total_status_changes_by_new_status = Hash.new(0)
       total_labels_applied_by_name = Hash.new(0)
       total_labels_removed_by_name = Hash.new(0)
+      total_assignees_added_by_login = Hash.new(0)
 
       project_pulls.each do |pull|
         new_pull_status_option_name = pull.change_status_if_necessary
@@ -44,11 +45,17 @@ module ProjectPullMover
         if removed_label_name
           total_labels_removed_by_name[removed_label_name] += 1
         end
+
+        added_assignee_login = pull.add_assignee_if_necessary
+        if added_assignee_login
+          total_assignees_added_by_login[added_assignee_login] += 1
+        end
       end
 
       any_changes = (total_status_changes_by_new_status.values.sum +
         total_labels_applied_by_name.values.sum +
-        total_labels_removed_by_name.values.sum) > 0
+        total_labels_removed_by_name.values.sum +
+        total_assignees_added_by_login.values.sum) > 0
 
       if any_changes
         message_pieces = []
@@ -69,6 +76,12 @@ module ProjectPullMover
           units = count == 1 ? "pull request" : "pull requests"
           first_letter = message_pieces.size < 1 ? "R" : "r"
           message_pieces << "#{first_letter}emoved '#{label_name}' from #{count} #{units}"
+        end
+
+        total_assignees_added_by_login.each do |login, count|
+          units = count == 1 ? "pull request" : "pull requests"
+          first_letter = message_pieces.size < 1 ? "A" : "a"
+          message_pieces << "#{first_letter}dded @#{login} as an assignee to #{count} #{units}"
         end
 
         message = message_pieces.join(", ")

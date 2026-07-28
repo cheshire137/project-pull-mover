@@ -122,6 +122,11 @@ module ProjectPullMover
             reviewDecision
             mergeable
             baseRefName
+            assignees(first: 100) {
+              nodes {
+                login
+              }
+            }
             commits(last: 1) {
               nodes {
                 commit {
@@ -307,6 +312,25 @@ module ProjectPullMover
       @gql_data["baseRefName"]
     end
 
+    sig { returns T::Array[String] }
+    def assignees
+      return @assignees if defined?(@assignees)
+      @assignees = begin
+        assignees_data = @gql_data["assignees"]
+        if assignees_data
+          nodes = assignees_data["nodes"] || []
+          nodes.map { |node| node["login"] }.compact
+        else
+          []
+        end
+      end
+    end
+
+    sig { params(login: String).returns(T::Boolean) }
+    def has_assignee?(login)
+      assignees.map(&:downcase).include?(login.downcase)
+    end
+
     sig { returns T.nilable(T::Boolean) }
     def against_default_branch?
       @repo && base_branch == @repo.default_branch
@@ -397,6 +421,35 @@ module ProjectPullMover
 
       @gh_cli.apply_pull_request_label(label_name: label_name, number: number, repo_nwo: repo_name_with_owner,
         pull_name: to_s)
+    end
+
+    sig { params(login: String).returns(T.nilable(String)) }
+    def add_assignee(login:)
+      number = self.number
+      repo_name_with_owner = self.repo_name_with_owner
+      unless number && repo_name_with_owner
+        raise MissingRequiredDataError, "Unable to add assignee to #{to_s}, missing required data"
+      end
+
+      @gh_cli.add_pull_request_assignee(login: login, number: number, repo_nwo: repo_name_with_owner,
+        pull_name: to_s)
+    end
+
+    sig { returns T::Boolean }
+    def should_add_assignee?
+      assignee = @options.assignee
+      !!(assignee && !has_assignee?(assignee))
+    end
+
+    sig { returns T.nilable(String) }
+    def add_assignee_if_necessary
+      if should_add_assignee?
+        assignee = T.must(@options.assignee)
+        add_assignee(login: assignee)
+        return assignee
+      end
+
+      nil
     end
 
     sig { params(label_name: String).returns(T.nilable(String)) }
