@@ -25,3 +25,4 @@ unless result.success?
 end
 
 ProjectPullMover::PullRequestMover.run(data: result, options: options, logger: logger)
+ProjectPullMover::ReopenedItemRestorer.run(gh_cli: gh_cli, options: options, project: result.project, logger: logger)

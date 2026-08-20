@@ -100,6 +100,33 @@ module ProjectPullMover
       end
     end
 
+    describe "#unarchive_project_item" do
+      it "runs gh command" do
+        project_item_id = "456def"
+        GhCli.any_instance.expects(:`).with("gh project item-archive #{@project_number} --owner " \
+          "#{@project_owner} --id #{project_item_id} --undo")
+
+        @gh_cli.unarchive_project_item(project_item_id: project_item_id, item_name: "foo/bar#1")
+
+        assert_equal "#{Logger::LOADING_PREFIX}Restoring archived project item foo/bar#1...",
+          @out_stream.string.strip
+      end
+    end
+
+    describe "#get_open_project_content" do
+      it "searches for open issues and pull requests in the project" do
+        expected_result = [
+          {"isPullRequest" => false, "number" => 1, "repository" => {"nameWithOwner" => "foo/bar"}},
+          {"isPullRequest" => true, "number" => 2, "repository" => {"nameWithOwner" => "foo/bar"}},
+        ]
+        command = "gh search issues --project \"#{@project_owner}/#{@project_number}\" --include-prs --state open " \
+          "--json \"isPullRequest,number,repository\" --limit #{@proj_items_limit} --author \"#{@author}\""
+        GhCli.any_instance.expects(:`).with(command).returns(expected_result.to_json)
+
+        assert_equal expected_result, @gh_cli.get_open_project_content
+      end
+    end
+
     describe "#check_auth_status" do
       it "runs gh command" do
         cmd_output = "yep you're signed in"

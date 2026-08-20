@@ -85,6 +85,32 @@ module ProjectPullMover
       `#{gh_path} project item-edit --id #{project_item_id} --project-id #{project_global_id} --field-id #{status_field_id} --single-select-option-id #{option_id}`
     end
 
+    sig { params(project_item_id: String, item_name: String).returns(T.nilable(String)) }
+    def unarchive_project_item(project_item_id:, item_name:)
+      @logger.loading("Restoring archived project item #{item_name}...") unless quiet_mode?
+      `#{gh_path} project item-archive #{@options.project_number} --owner #{@options.project_owner} --id #{project_item_id} --undo`
+    end
+
+    sig { returns T::Array[T.untyped] }
+    def get_open_project_content
+      project = "#{@options.project_owner}/#{@options.project_number}"
+      command = "#{gh_path} search issues --project \"#{project}\" --include-prs --state open " \
+        "--json \"isPullRequest,number,repository\" --limit #{@options.proj_items_limit}"
+      command += " --author \"#{@options.author}\"" if @options.author
+      json_str = T.let(`#{command}`, T.nilable(String))
+      if json_str.nil? || json_str == ""
+        raise NoJsonError, "Error: no JSON results for open project content; command: #{command}"
+      end
+
+      json_obj = parse_json(json_str)
+      unless json_obj.is_a?(Array)
+        raise UnexpectedJsonStructureError, "Error: expected an array of open project content, got " \
+          "#{json_obj.class.name}: #{json_obj.inspect}"
+      end
+
+      json_obj
+    end
+
     sig { void }
     def check_auth_status
       auth_status_result = `#{gh_path} auth status`

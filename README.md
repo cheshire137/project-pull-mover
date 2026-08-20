@@ -6,7 +6,7 @@ moved.
 
 ![Screenshot of a GitHub project in kanban board layout with several columns. There is a blue arrow from a pull request in the left-most In Progress column pointing into the adjacent Not Against Master column.](./project-screenshot.png)
 
-The script gets the list of pull requests in the specified project, iterates through them, and updates the status field you specify based on the PR's state.
+The script gets the list of pull requests in the specified project, iterates through them, and updates the status field you specify based on the PR's state. It also finds open issues and pull requests that are archived with a status whose name starts with `Done`, restores them, and moves them to the configured `In progress` status.
 
 ## How to use
 
