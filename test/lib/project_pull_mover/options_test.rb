@@ -15,7 +15,7 @@ module ProjectPullMover
       it "returns new Options instance when valid" do
         argv = ["-p", "123", "-o", "someorg", "-t", "organization", "-s", "Status", "-i", "abc123"]
 
-        options = Options.parse(file: "project_pull_mover.rb", logger: @logger, argv: argv)
+        options = Options.parse(file: "project_pull_mover.rb", logger: @logger, pull_fields_per_query: 1, argv: argv)
 
         assert_instance_of Options, options
         assert_equal 123, options.project_number
@@ -23,6 +23,7 @@ module ProjectPullMover
         assert_equal "organization", options.project_owner_type
         assert_equal "Status", options.status_field
         assert_equal "abc123", options.in_progress_option_id
+        assert_equal 1, options.pull_fields_per_query
         assert_equal "", @out_stream.string
         assert_equal "", @err_stream.string
       end
