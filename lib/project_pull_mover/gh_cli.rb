@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "open3"
 require_relative "logger"
 require_relative "options"
 require_relative "utils"
@@ -169,21 +170,41 @@ module ProjectPullMover
 
     sig { params(graphql_query: String).returns(T.untyped) }
     def make_graphql_api_query(graphql_query)
-      json_str = `#{gh_path} api graphql -f query='#{graphql_query}'`
-      graphql_resp = parse_json(json_str)
+      json_str, stderr, status = Open3.capture3(gh_path, "api", "graphql", "-f", "query=#{graphql_query}")
+      if json_str.empty?
+        details = stderr.strip
+        details = "gh returned no response" if details.empty?
+        raise GraphqlApiError, graphql_api_error_message(graphql_query: graphql_query, details: details)
+      end
+
+      graphql_resp = begin
+        parse_json(json_str)
+      rescue JSON::ParserError, JsonParseError => err
+        details = stderr.strip
+        details = "Could not parse response: #{err.message}" if details.empty?
+        raise GraphqlApiError, graphql_api_error_message(graphql_query: graphql_query, details: details)
+      end
 
       unless graphql_resp.is_a?(Hash)
-        raise UnexpectedJsonStructureError, "Error: expected a hash from GraphQL API, got " \
-          "#{graphql_resp.class.name}: #{graphql_resp.inspect}"
+        details = "Expected a hash response, got #{graphql_resp.class.name}: #{graphql_resp.inspect}"
+        raise GraphqlApiError, graphql_api_error_message(graphql_query: graphql_query, details: details)
+      end
+
+      errors = graphql_resp["errors"]
+      if errors
+        details = errors.map { |err| err["message"] }.join("\n")
+        raise GraphqlApiError, graphql_api_error_message(graphql_query: graphql_query, details: details)
+      end
+
+      unless status.success?
+        details = stderr.strip
+        details = graphql_resp.inspect if details.empty?
+        raise GraphqlApiError, graphql_api_error_message(graphql_query: graphql_query, details: details)
       end
 
       unless graphql_resp["data"]
-        graphql_error_msg = if graphql_resp["errors"]
-          graphql_resp["errors"].map { |err| err["message"] }.join("\n")
-        else
-          graphql_resp.inspect
-        end
-        raise GraphqlApiError, "Error: no data returned from the GraphQL API: #{graphql_error_msg}"
+        raise GraphqlApiError,
+          graphql_api_error_message(graphql_query: graphql_query, details: "Response contained no data")
       end
 
       graphql_resp["data"]
@@ -223,6 +244,11 @@ module ProjectPullMover
         raise JsonParseError.new("Could not parse JSON due to invalid byte sequence: #{err.message}\n" \
           "Encoded input:\n\n#{encoded_input.inspect}", err)
       end
+    end
+
+    sig { params(graphql_query: String, details: String).returns(String) }
+    def graphql_api_error_message(graphql_query:, details:)
+      "Error: GraphQL API query failed:\n#{details}\nGraphQL query:\n#{graphql_query}"
     end
 
     sig { returns(T::Boolean) }

@@ -250,7 +250,9 @@ module ProjectPullMover
         data = {"foo" => "bar"}
         cmd_output = {"data" => data}.to_json
         graphql_query = "some query"
-        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+        status = stub(success?: true)
+        Open3.expects(:capture3).once.with("gh", "api", "graphql", "-f", "query=#{graphql_query}")
+          .returns([cmd_output, "", status])
 
         result = @gh_cli.make_graphql_api_query(graphql_query)
 
@@ -260,21 +262,57 @@ module ProjectPullMover
       it "runs gh command and handles error response with 'errors' field" do
         cmd_output = {"errors" => [{"message" => "o noes"}, {"message" => "it failed"}]}.to_json
         graphql_query = "some query"
-        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+        status = stub(success?: false)
+        Open3.expects(:capture3).once.with("gh", "api", "graphql", "-f", "query=#{graphql_query}")
+          .returns([cmd_output, "gh: o noes", status])
 
         error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
 
-        assert_equal "Error: no data returned from the GraphQL API: o noes\nit failed", error.message
+        assert_equal "Error: GraphQL API query failed:\no noes\nit failed\nGraphQL query:\n#{graphql_query}",
+          error.message
       end
 
       it "runs gh command and handles error response without 'errors' field" do
         cmd_output = {"foo" => "bar"}.to_json
         graphql_query = "some query"
-        GhCli.any_instance.expects(:`).once.with("gh api graphql -f query='#{graphql_query}'").returns(cmd_output)
+        status = stub(success?: true)
+        Open3.expects(:capture3).once.with("gh", "api", "graphql", "-f", "query=#{graphql_query}")
+          .returns([cmd_output, "", status])
 
         error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
 
-        assert_equal "Error: no data returned from the GraphQL API: {\"foo\" => \"bar\"}", error.message
+        assert_equal "Error: GraphQL API query failed:\nResponse contained no data\nGraphQL query:\n#{graphql_query}",
+          error.message
+      end
+
+      it "handles errors returned alongside partial data" do
+        graphql_query = "query with too many resources"
+        cmd_output = {
+          "data" => {"foo" => nil},
+          "errors" => [{"message" => "Resource limits for this query exceeded."}],
+        }.to_json
+        status = stub(success?: false)
+        Open3.expects(:capture3).once.with("gh", "api", "graphql", "-f", "query=#{graphql_query}")
+          .returns([cmd_output, "gh: Resource limits for this query exceeded.\n", status])
+
+        error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
+
+        assert_equal "Error: GraphQL API query failed:\nResource limits for this query exceeded.\n" \
+          "GraphQL query:\n#{graphql_query}", error.message
+        assert_equal "", @err_stream.string
+      end
+
+      it "adds query context when gh returns only stderr" do
+        graphql_query = "query that failed before returning JSON"
+        status = stub(success?: false)
+        Open3.expects(:capture3).once.with("gh", "api", "graphql", "-f", "query=#{graphql_query}")
+          .returns(["", "gh: transport failure\n", status])
+
+        error = assert_raises(GhCli::GraphqlApiError) { @gh_cli.make_graphql_api_query(graphql_query) }
+
+        assert_equal "Error: GraphQL API query failed:\ngh: transport failure\nGraphQL query:\n#{graphql_query}",
+          error.message
+        assert_equal "", @err_stream.string
       end
     end
   end
