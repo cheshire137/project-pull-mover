@@ -168,8 +168,8 @@ ruby -Ilib:test test/lib/project_pull_mover/utils_test.rb
 Update `VERSION` in [version.rb](./lib/project_pull_mover/version.rb).
 
 ```sh
-git tag v0.0.x main # use the same version as in `VERSION`
-git push origin tag v0.0.x
+git tag v0.x.x main # use the same version as in `VERSION`
+git push origin tag v0.x.x
 ```
 
 This will trigger a workflow that builds the gem and creates a new release.
