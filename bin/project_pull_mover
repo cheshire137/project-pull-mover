@@ -27,12 +27,8 @@ end
 
 ProjectPullMover::PullRequestMover.run(data: result, options: options, logger: logger)
 begin
-  ProjectPullMover::ReopenedItemRestorer.run(
-    gh_cli: gh_cli,
-    options: options,
-    project: result.project,
-    logger: logger,
-  )
+  ProjectPullMover::ReopenedItemRestorer.run(gh_cli: gh_cli, options: options, project: result.project,
+    logger: logger)
 rescue ProjectPullMover::GhCli::GraphqlApiError => err
   logger.error(err.message)
   exit 1
