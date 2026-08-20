@@ -3,6 +3,7 @@
 
 require "json"
 require "open3"
+require "shellwords"
 require_relative "logger"
 require_relative "options"
 require_relative "utils"
@@ -35,7 +36,7 @@ module ProjectPullMover
     end
     def apply_pull_request_label(label_name:, number:, repo_nwo:, pull_name:)
       @logger.loading("Applying label '#{label_name}' to #{pull_name}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --add-label "#{label_name}"`
+      run_gh_with_deferred_stderr("pr", "edit", number.to_s, "--repo", repo_nwo, "--add-label", label_name)
     end
 
     sig do
@@ -43,7 +44,7 @@ module ProjectPullMover
     end
     def remove_pull_request_label(label_name:, number:, repo_nwo:, pull_name:)
       @logger.loading("Removing label '#{label_name}' from #{pull_name}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --remove-label "#{label_name}"`
+      run_gh_with_deferred_stderr("pr", "edit", number.to_s, "--repo", repo_nwo, "--remove-label", label_name)
     end
 
     sig do
@@ -51,7 +52,7 @@ module ProjectPullMover
     end
     def add_pull_request_assignee(login:, number:, repo_nwo:, pull_name:)
       @logger.loading("Adding @#{login} as an assignee to #{pull_name}...") unless quiet_mode?
-      `#{gh_path} pr edit #{number} --repo "#{repo_nwo}" --add-assignee "#{login}"`
+      run_gh_with_deferred_stderr("pr", "edit", number.to_s, "--repo", repo_nwo, "--add-assignee", login)
     end
 
     sig do
@@ -66,7 +67,7 @@ module ProjectPullMover
     sig { params(number: Integer, repo_nwo: String, pull_name: String).returns(T.nilable(String)) }
     def mark_pull_request_as_draft(number:, repo_nwo:, pull_name:)
       @logger.loading("Marking #{pull_name} as a draft...") unless quiet_mode?
-      `#{gh_path} pr ready --undo #{number} --repo "#{repo_nwo}"`
+      run_gh_with_deferred_stderr("pr", "ready", "--undo", number.to_s, "--repo", repo_nwo)
     end
 
     sig do
@@ -249,6 +250,14 @@ module ProjectPullMover
     sig { params(graphql_query: String, details: String).returns(String) }
     def graphql_api_error_message(graphql_query:, details:)
       "Error: GraphQL API query failed:\n#{details}\nGraphQL query:\n#{graphql_query}"
+    end
+
+    sig { params(arguments: String).returns(T.nilable(String)) }
+    def run_gh_with_deferred_stderr(*arguments)
+      command = ([gh_path] + arguments).shelljoin
+      stdout, stderr, = Open3.capture3(command)
+      @logger.defer_warning(stderr)
+      stdout
     end
 
     sig { returns(T::Boolean) }

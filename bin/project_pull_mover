@@ -4,6 +4,7 @@
 require_relative "../lib/project_pull_mover"
 
 logger = ProjectPullMover::Logger.new(out_stream: $stdout, err_stream: $stderr)
+at_exit { logger.flush_deferred_warnings }
 options = begin
   ProjectPullMover::Options.parse(file: __FILE__, proj_items_limit: 500, pull_fields_per_query: 7, logger: logger)
 rescue ProjectPullMover::Options::InvalidOptionsError

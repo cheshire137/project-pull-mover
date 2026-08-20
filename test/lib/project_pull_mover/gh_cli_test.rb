@@ -22,7 +22,9 @@ module ProjectPullMover
 
     describe "#apply_pull_request_label" do
       it "runs gh command" do
-        GhCli.any_instance.expects(:`).with('gh pr edit 1 --repo "foo/bar" --add-label "foo"')
+        status = stub(success?: true)
+        Open3.expects(:capture3).with("gh pr edit 1 --repo foo/bar --add-label foo")
+          .returns(["", "", status])
 
         @gh_cli.apply_pull_request_label(label_name: "foo", number: 1, repo_nwo: "foo/bar", pull_name: "my test PR")
 
@@ -33,7 +35,9 @@ module ProjectPullMover
 
     describe "#add_pull_request_assignee" do
       it "runs gh command" do
-        GhCli.any_instance.expects(:`).with('gh pr edit 1 --repo "foo/bar" --add-assignee "someUser"')
+        status = stub(success?: true)
+        Open3.expects(:capture3).with("gh pr edit 1 --repo foo/bar --add-assignee someUser")
+          .returns(["", "", status])
 
         @gh_cli.add_pull_request_assignee(login: "someUser", number: 1, repo_nwo: "foo/bar", pull_name: "my test PR")
 
@@ -44,7 +48,9 @@ module ProjectPullMover
 
     describe "#remove_pull_request_label" do
       it "runs gh command" do
-        GhCli.any_instance.expects(:`).with('gh pr edit 1 --repo "foo/bar" --remove-label "foo"')
+        status = stub(success?: true)
+        Open3.expects(:capture3).with("gh pr edit 1 --repo foo/bar --remove-label foo")
+          .returns(["", "", status])
 
         @gh_cli.remove_pull_request_label(label_name: "foo", number: 1, repo_nwo: "foo/bar", pull_name: "my test PR")
 
@@ -66,7 +72,9 @@ module ProjectPullMover
 
     describe "#mark_pull_request_as_draft" do
       it "runs gh command" do
-        GhCli.any_instance.expects(:`).with('gh pr ready --undo 1 --repo "foo/bar"')
+        status = stub(success?: true)
+        Open3.expects(:capture3).with("gh pr ready --undo 1 --repo foo/bar")
+          .returns(["", "", status])
 
         @gh_cli.mark_pull_request_as_draft(number: 1, repo_nwo: "foo/bar", pull_name: "my test PR")
 
