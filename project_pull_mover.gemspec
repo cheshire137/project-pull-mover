@@ -13,4 +13,6 @@ Gem::Specification.new do |s|
   s.executables   = ["project_pull_mover"]
   s.homepage      = "https://github.com/cheshire137/project-pull-mover"
   s.license       = "MIT"
+
+  s.add_runtime_dependency "sorbet-runtime", "~> 0.5.11663"
 end
